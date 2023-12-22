@@ -110,6 +110,132 @@ class Registration(QMainWindow):
         k.write(text)
 
 
+class Open_Game(QMainWindow):
+    def __init__(self, *accaunt):
+        super().__init__()
+        uic.loadUi('казино.ui', self)
+        self.LineEdit.setValidator(QIntValidator(0, 2147483647, self))
+        self.accaunt = accaunt
+        self.balans.setText(str(self.accaunt[0]))
+        self.label_52.hide()
+        self.label_54.hide()
+        self.plainTextEdit.setEnabled(False)
+        self.count = 0
+        self.count_to_twist = 0
+        self.count_to_twist_list = []
+        self.toolittel.hide()
+        self.rocket_is_flying.hide()
+        self.pushButton_2.clicked.connect(self.roulette)
+        self.pushButton.clicked.connect(self.twist)
+        self.pushButton_3.clicked.connect(self.fly)
+        self.win = {'999': 20000, '888': 10000,
+                    '777': 5000, '666': 2000,
+                    '555': 1000, '444': 500,
+                    '333': 300, '222': 150,
+                    '111': 50, '123': 5,
+                    '234': 5, '345': 5,
+                    '456': 5, '567': 5,
+                    '678': 5, '789': 5}
+
+    def roulette(self):
+        self.roll = Roulette(self.accaunt[1], self.balans.text())
+        self.roll.show()
+        self.hide()
+
+    def saveStat(self):
+        con = sqlite3.connect("аккаунты.db")
+        cur = con.cursor()
+        cur.execute(f"""UPDATE Acc Set money = {self.balans.text()} Where login = '{self.accaunt[1]}'""")
+        con.commit()
+        con.close()
+
+    def fly(self):
+        self.go = Quiz(self.accaunt[1], self.balans.text())
+        self.go.show()
+        self.hide()
+
+    def twist(self):
+        try:
+            self.label_52.hide()
+            self.toolittel.setReadOnly(True)
+            self.pushButton_3.setEnabled(False)
+            self.LineEdit.setEnabled(False)
+            self.pushButton.setEnabled(False)
+            self.pushButton_2.setEnabled(False)
+            self.label_3.setText('')
+            self.count_to_twist += 1
+            self.rocket_is_flying.show()
+            self.rocket_is_standing.hide()
+            self.toolittel.hide()
+            self.bet = int(self.LineEdit.text())
+            self.count_to_twist_list.append(self.bet)
+            if self.bet not in range(1, int(self.balans.text()) + 1):
+                self.toolittel.show()
+                self.LineEdit.setEnabled(True)
+                self.pushButton.setEnabled(True)
+                self.pushButton_2.setEnabled(True)
+                self.pushButton_3.setEnabled(True)
+                return 0
+            else:
+                self.balans.setText(str(int(self.balans.text()) - self.bet))
+            self.twists = 0
+            self.digit = '123456789'
+        except Exception as e:
+            print(e)
+
+        def taskmanager():
+            self.saveStat()
+            self.count += 3
+            self.rocket_is_flying.move(40, 590 - self.count)
+            self.twists += 1
+            self.slot_1.setText(random.choice(str(self.digit)))
+            self.slot_2.setText(random.choice(str(self.digit)))
+            self.slot_3.setText(random.choice(str(self.digit)))
+            if self.twists <= 10:
+                t = Timer(0.05, taskmanager)
+                t.start()
+            elif self.twists <= 20:
+                t = Timer(0.2, taskmanager)
+                t.start()
+            elif self.twists <= 25:
+                t = Timer(0.5, taskmanager)
+                t.start()
+            else:
+                if self.slot_1.text() + self.slot_2.text() + self.slot_3.text() in self.win:
+                    self.balans.setText(str(int(self.balans.text()) + int(self.bet) * self.win[
+                        self.slot_1.text() + self.slot_2.text() + self.slot_3.text()]))
+                    self.label_3.setText(str(int(self.bet) * self.win[
+                        self.slot_1.text() + self.slot_2.text() + self.slot_3.text()]))
+                    if self.slot_1.text() == self.slot_2.text() and self.slot_1.text() == self.slot_3.text():
+                        len_win = len(self.label_3.text())
+                        self.label_54.setText(
+                            ' ' * ((12 - len_win) // 2) + self.label_3.text() + ' ' * ((12 - len_win) // 2))
+                        self.label_52.show()
+                        self.label_54.show()
+                        time.sleep(2)
+                        self.label_52.hide()
+                        self.label_54.hide()
+                elif self.slot_1.text() + self.slot_2.text() == '11' or self.slot_2.text() + self.slot_3.text() == '11':
+                    self.balans.setText(str(int(self.balans.text()) + int(self.bet) * 5))
+                    self.label_3.setText(str(int(self.bet) * 5))
+                elif self.slot_1.text() == '1' or self.slot_2.text() == '1' or self.slot_3.text() == '1':
+                    self.balans.setText(str(int(self.balans.text()) + int(self.bet) * 2))
+                    self.label_3.setText(str(int(self.bet) * 2))
+                self.LineEdit.setEnabled(True)
+                self.pushButton.setEnabled(True)
+                self.pushButton_2.setEnabled(True)
+                self.pushButton_3.setEnabled(True)
+                if self.count_to_twist % 7 == 0:
+                    self.balans.setText(str(int(self.balans.text()) + sum(self.count_to_twist_list) // 7))
+                    self.rocket_is_flying.move(40, 590)
+                    self.count = 0
+                    self.rocket_is_flying.hide()
+                    self.rocket_is_standing.show()
+                self.saveStat()
+
+        taskmanager()
+
+
 if __name__ == '__main__':
     app = QApplication(sys.argv)
     ex = MainWidget()
