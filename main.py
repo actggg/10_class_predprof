@@ -1,21 +1,56 @@
-import csv
-import random
 import sqlite3
+import datetime
 import sys
-import time
+import random
+
 from threading import Timer
 
-import pymorphy2
 from PyQt5 import uic
-from PyQt5.QtGui import QIntValidator
+from PyQt5.QtGui import QPixmap
 from PyQt5.QtWidgets import QApplication, QMainWindow, QInputDialog
 
+from matplotlib.backends.qt_compat import QtCore, QtWidgets
+from matplotlib.backends.backend_qt5agg import FigureCanvas, NavigationToolbar2QT as NavigationToolbar
+from matplotlib.figure import Figure
+
+from geopy.geocoders import Nominatim
+
+import request
+
+from translatepy.translators.yandex import YandexTranslate
+
+translator = YandexTranslate()
+
+import http.client
+
+def valid_ip(IP):
+    ip_split = list(map(int, str(IP).split('.')))
+    n = len(ip_split)
+    if not n == 4:
+        return 0
+    else:
+        for i in range(4):
+            if not 0 <= ip_split[i] <= 255:
+                return 0
+    return 1
+
+def getplace(lat, lon):
+    geolocator = Nominatim(user_agent=str(random.randint(10000, 10000000000)))
+    location = geolocator.reverse(lat + "," + lon)
+    if not location:
+        return 0
+    return location
+
+def translate_from_en_to_ru(word):
+    return translator.translate(word, 'ru')
 
 class MainWidget(QMainWindow):
     def __init__(self):
         super().__init__()
-        uic.loadUi('Начальный Экран.ui', self)
+        uic.loadUi('Начальный Экран(Вход).ui', self)
         self.mistakes.hide()
+        self.statusBar().hide()
+        self.setFixedSize(760, 500)
         self.going.clicked.connect(self.allowance)
         self.registrationbutton.clicked.connect(self.register)
 
@@ -25,16 +60,17 @@ class MainWidget(QMainWindow):
         con = sqlite3.connect("аккаунты.db")
         cur = con.cursor()
         result = cur.execute(
-            f""" Select money, login from Acc where Acc.login = '{introduced_login}'
+            f""" Select IP, login from Acc where Acc.login = '{introduced_login}'
             and Acc.password='{introduced_password}'""").fetchall()
         if result:
             for elem in result:
-                self.open_game = Open_Game(elem[0], elem[1])
-                self.open_game.show()
+                self.open_weather = Open_weather([elem[0], elem[1]])
+                self.open_weather.show()
                 self.hide()
         else:
             self.mistakes.show()
         con.close()
+
 
     def register(self):
         self.registration = Registration()
@@ -45,9 +81,16 @@ class MainWidget(QMainWindow):
 class Registration(QMainWindow):
     def __init__(self):
         super().__init__()
-        uic.loadUi('регистрация.ui', self)
+        uic.loadUi('Регистрация.ui', self)
+        self.statusBar().hide()
+        self.setFixedSize(760, 500)
         self.registration.clicked.connect(self.register_an_account)
-        self.license_agreement.clicked.connect(self.license_agreement_open)
+        self.login_page.clicked.connect(self.back_to_login)
+
+    def back_to_login(self):
+        self.go_home = MainWidget()
+        self.go_home.show()
+        self.hide()
 
     def password_verification(self, password):
         lit_ang_connections = 'qwertyuiop        asdfghjkl      zxcvbnm'
@@ -71,174 +114,168 @@ class Registration(QMainWindow):
 
     def register_an_account(self):
         password_errors = {
-            1: 'в пароле должны содержаться цифры',
-            2: 'пароль должен сосотоять из более чем 8 символов',
-            3: 'в пароле должны содержаться буквы',
-            4: 'в пароле должны содержаться большие и маленькие буквы',
-            5: 'слишком простой пароль'
+            1: 'В пароле должны содержаться цифры',
+            2: 'Пароль должен сосотоять из более чем 8 символов',
+            3: 'В пароле должны содержаться буквы',
+            4: 'В пароле должны содержаться большие и маленькие буквы',
+            5: 'Слишком простой пароль'
         }
         login_acc = self.login.text()
         password_acc = self.password.text()
+        conn = http.client.HTTPConnection("ifconfig.me")
+        conn.request("GET", "/ip")
+        ip = str(conn.getresponse().read())[2:-1]
+
         if login_acc != '' and password_acc != '' and self.password_2.text() != '':
-            if self.statement.isChecked():
-                if self.password.text() == self.password_2.text():
-                    if self.password_verification(password_acc) == 0:
+            if self.password.text() == self.password_2.text():
+                if self.password_verification(password_acc) == 0:
+                    if valid_ip(ip):
                         con = sqlite3.connect("аккаунты.db")
                         cursor = con.cursor()
-                        cursor.execute("INSERT INTO Acc(login, password) VALUES(?, ?)", (login_acc, password_acc))
+                        cursor.execute("INSERT INTO Acc(login, password, IP) VALUES(?, ?, ?)", (login_acc, password_acc, ip))
                         con.commit()
                         cursor.close()
                         con.close()
-                        self.go_home = MainWidget()
-                        self.go_home.show()
-                        self.hide()
+                        self.back_to_login()
                     else:
-                        self.error_message.setText(password_errors[self.password_verification(password_acc)])
+                        self.error_message.setText('Некорректный IP-адрес')
                 else:
-                    self.error_message.setText('пароли не совпадают')
+                    self.error_message.setText(password_errors[self.password_verification(password_acc)])
             else:
-                self.error_message.setText('вы забыли лицензионное соглашение')
+                self.error_message.setText('Пароли не совпадают')
         else:
-            self.error_message.setText('не все поля заполнены')
-
-    def license_agreement_open(self):
-        self.setWindowTitle('Input dialog')
-        self.show()
-        text, ok = QInputDialog.getText(self, 'Лицензионное соглашение',
-                                        f'Хоть кто то это прочитал, оставте свой отзыв')
-        k = open('output.dat', 'w')
-        k.write(text)
+            self.error_message.setText('Не все поля заполнены')
 
 
-class Open_Game(QMainWindow):
-    def __init__(self, *accaunt):
+
+class Open_weather(QMainWindow):
+    def __init__(self, account):
         super().__init__()
-        uic.loadUi('казино.ui', self)
-        self.LineEdit.setValidator(QIntValidator(0, 2147483647, self))
-        self.accaunt = accaunt
-        self.balans.setText(str(self.accaunt[0]))
-        self.label_52.hide()
-        self.label_54.hide()
-        self.plainTextEdit.setEnabled(False)
-        self.count = 0
-        self.count_to_twist = 0
-        self.count_to_twist_list = []
-        self.toolittel.hide()
-        self.rocket_is_flying.hide()
-        self.pushButton_2.clicked.connect(self.roulette)
-        self.pushButton.clicked.connect(self.twist)
-        self.pushButton_3.clicked.connect(self.fly)
-        self.win = {'999': 20000, '888': 10000,
-                    '777': 5000, '666': 2000,
-                    '555': 1000, '444': 500,
-                    '333': 300, '222': 150,
-                    '111': 50, '123': 5,
-                    '234': 5, '345': 5,
-                    '456': 5, '567': 5,
-                    '678': 5, '789': 5}
+        uic.loadUi('Главный экран(Погода).ui', self)
+        self.statusBar().hide()
+        self.setFixedSize(760, 500)
+        self.account = account
+        self.IP = self.account[0]
 
-    def roulette(self):
-        self.roll = Roulette(self.accaunt[1], self.balans.text())
-        self.roll.show()
-        self.hide()
-
-    def saveStat(self):
-        con = sqlite3.connect("аккаунты.db")
-        cur = con.cursor()
-        cur.execute(f"""UPDATE Acc Set money = {self.balans.text()} Where login = '{self.accaunt[1]}'""")
-        con.commit()
-        con.close()
-
-    def fly(self):
-        self.go = Quiz(self.accaunt[1], self.balans.text())
-        self.go.show()
-        self.hide()
-
-    def twist(self):
         try:
-            self.label_52.hide()
-            self.toolittel.setReadOnly(True)
-            self.pushButton_3.setEnabled(False)
-            self.LineEdit.setEnabled(False)
-            self.pushButton.setEnabled(False)
-            self.pushButton_2.setEnabled(False)
-            self.label_3.setText('')
-            self.count_to_twist += 1
-            self.rocket_is_flying.show()
-            self.rocket_is_standing.hide()
-            self.toolittel.hide()
-            self.bet = int(self.LineEdit.text())
-            self.count_to_twist_list.append(self.bet)
-            if self.bet not in range(1, int(self.balans.text()) + 1):
-                self.toolittel.show()
-                self.LineEdit.setEnabled(True)
-                self.pushButton.setEnabled(True)
-                self.pushButton_2.setEnabled(True)
-                self.pushButton_3.setEnabled(True)
-                return 0
-            else:
-                self.balans.setText(str(int(self.balans.text()) - self.bet))
-            self.twists = 0
-            self.digit = '123456789'
+            self.get_weather()
         except Exception as e:
             print(e)
 
-        def taskmanager():
-            self.saveStat()
-            self.count += 3
-            self.rocket_is_flying.move(40, 590 - self.count)
-            self.twists += 1
-            self.slot_1.setText(random.choice(str(self.digit)))
-            self.slot_2.setText(random.choice(str(self.digit)))
-            self.slot_3.setText(random.choice(str(self.digit)))
-            if self.twists <= 10:
-                t = Timer(0.05, taskmanager)
-                t.start()
-            elif self.twists <= 20:
-                t = Timer(0.2, taskmanager)
-                t.start()
-            elif self.twists <= 25:
-                t = Timer(0.5, taskmanager)
-                t.start()
-            else:
-                if self.slot_1.text() + self.slot_2.text() + self.slot_3.text() in self.win:
-                    self.balans.setText(str(int(self.balans.text()) + int(self.bet) * self.win[
-                        self.slot_1.text() + self.slot_2.text() + self.slot_3.text()]))
-                    self.label_3.setText(str(int(self.bet) * self.win[
-                        self.slot_1.text() + self.slot_2.text() + self.slot_3.text()]))
-                    if self.slot_1.text() == self.slot_2.text() and self.slot_1.text() == self.slot_3.text():
-                        len_win = len(self.label_3.text())
-                        self.label_54.setText(
-                            ' ' * ((12 - len_win) // 2) + self.label_3.text() + ' ' * ((12 - len_win) // 2))
-                        self.label_52.show()
-                        self.label_54.show()
-                        time.sleep(2)
-                        self.label_52.hide()
-                        self.label_54.hide()
-                elif self.slot_1.text() + self.slot_2.text() == '11' or self.slot_2.text() + self.slot_3.text() == '11':
-                    self.balans.setText(str(int(self.balans.text()) + int(self.bet) * 5))
-                    self.label_3.setText(str(int(self.bet) * 5))
-                elif self.slot_1.text() == '1' or self.slot_2.text() == '1' or self.slot_3.text() == '1':
-                    self.balans.setText(str(int(self.balans.text()) + int(self.bet) * 2))
-                    self.label_3.setText(str(int(self.bet) * 2))
-                self.LineEdit.setEnabled(True)
-                self.pushButton.setEnabled(True)
-                self.pushButton_2.setEnabled(True)
-                self.pushButton_3.setEnabled(True)
-                if self.count_to_twist % 7 == 0:
-                    self.balans.setText(str(int(self.balans.text()) + sum(self.count_to_twist_list) // 7))
-                    self.rocket_is_flying.move(40, 590)
-                    self.count = 0
-                    self.rocket_is_flying.hide()
-                    self.rocket_is_standing.show()
-                self.saveStat()
+        self.update_weather.clicked.connect(self.get_weather)
+        self.update_geo.clicked.connect(self.get_weather_update_geo)
 
-        taskmanager()
+    def set_background(self, weather):
+        if weather == 'Clear':
+            pixmap = QPixmap('C:/Users/sasak/PycharmProjects/10_class_predprof/weather-photos/background/clear.jpg')
+        elif weather == 'Clouds':
+            pixmap = QPixmap('C:/Users/sasak/PycharmProjects/10_class_predprof/weather-photos/background/cloudy.png')
+        elif weather == 'Snow':
+            pixmap = QPixmap('C:/Users/sasak/PycharmProjects/10_class_predprof/weather-photos/background/snow.jpg')
+        elif weather == 'Rain':
+            pixmap = QPixmap('C:/Users/sasak/PycharmProjects/10_class_predprof/weather-photos/background/rain.jpg')
+        elif weather == 'Drizzle':
+            pixmap = QPixmap('C:/Users/sasak/PycharmProjects/10_class_predprof/weather-photos/background/drizzle.png')
+        elif weather == 'Thunderstorm':
+            pixmap = QPixmap('C:/Users/sasak/PycharmProjects/10_class_predprof/weather-photos/background/thunder.jpg')
+        elif weather == 'Mist' or weather == 'Fog' or weather == 'Smoke' or weather == 'Haze':
+            pixmap = QPixmap('C:/Users/sasak/PycharmProjects/10_class_predprof/weather-photos/background/fog.jpg')
+        elif weather == 'Tornado':
+            pixmap = QPixmap('C:/Users/sasak/PycharmProjects/10_class_predprof/weather-photos/background/tornado.jpg')
+        elif weather == 'Squall':
+            pixmap = QPixmap('C:/Users/sasak/PycharmProjects/10_class_predprof/weather-photos/background/squall.jpg')
+        elif weather == 'Ash':
+            pixmap = QPixmap('C:/Users/sasak/PycharmProjects/10_class_predprof/weather-photos/background/ash.jpg')
+        elif weather == 'Dust' or weather == 'Sand':
+            pixmap = QPixmap('C:/Users/sasak/PycharmProjects/10_class_predprof/weather-photos/background/dust.jpg')
+        else:
+            pixmap = QPixmap('C:/Users/sasak/PycharmProjects/10_class_predprof/weather-photos/background/clear.jpg')
+        self.background.setPixmap(pixmap)
+
+
+    def get_weather(self):
+        self.data = request.weather_request(0, self.IP)
+        self.draw_weather()
+
+
+    def get_weather_update_geo(self):
+        self.data = request.weather_request(1, self.IP)
+        self.draw_weather()
+
+    def date_format(self):
+        now = datetime.datetime.now()
+        date = '{:02d}:{:02d}:{:02d} {:02d}.{:02d}.{:04d}'.format(now.hour, now.minute, now.second, now.day, now.month, now.year)
+        return date
+
+    def wind_dir_get(self, deg):
+        if round(deg / 22.5) == 0 or round(deg / 22.5) == 15:
+            return 'С'
+        elif round(deg / 45) == 1:
+            return 'СВ'
+        elif round(deg / 45) == 2:
+            return 'В'
+        elif round(deg / 45) == 3:
+            return 'ЮВ'
+        elif round(deg / 45) == 4:
+            return 'Ю'
+        elif round(deg / 45) == 5:
+            return 'ЮЗ'
+        elif round(deg / 45) == 6:
+            return 'З'
+        elif round(deg / 45) == 7:
+            return 'СЗ'
+
+
+    def change_label_update(self):
+        self.label_update.setText('Данные актуальны на \n' + self.date_format())
+
+    def draw_weather(self):
+        self.label_update.setText('Данные обновлены')
+        timer = Timer(3.0, self.change_label_update)
+        timer.start()
+
+        self.temp = str(round(self.data['main']['temp'])) + '°'
+        self.temp_like = str(round(self.data['main']['feels_like'])) + '°'
+        self.hum = str(round(self.data['main']['humidity'])) + '%'
+        self.press = str(round(0.750064 * self.data['main']['pressure'])) + '\nмм рт. ст.'
+        self.wind_dir = str(self.data['wind']['deg']) + '° ' + self.wind_dir_get(self.data['wind']['deg'])
+        self.wind_sp = str(round(self.data['wind']['speed'])) + ' м/c'
+        self.clouds = str(round(self.data['clouds']['all'])) + '%'
+        self.weather = self.data['weather'][0]['main']
+
+        self.set_background(self.weather)
+
+        with open('Saved_coords.txt') as f:
+            self.lat, self.lon = f.read().split()
+
+        self.place = getplace(self.lat, self.lon)
+        if self.place != 0:
+            self.loc = str(getplace(self.lat, self.lon)[0]).split(', ')
+            print(self.loc)
+            if len(self.loc) <= 4:
+                self.label_geo.setText(str('Текущая локация:\n' + self.loc[0] + ', \n' + self.loc[1]))
+            else:
+                self.label_geo.setText(str('Текущая локация:\n' + self.loc[3] + ', \n' + self.loc[2]))
+        else:
+            self.label_geo.setText(str('Текущая локация:\n---\n---'))
+
+        self.wind_direction.setText(self.wind_dir)
+        self.wind_speed.setText(self.wind_sp)
+        self.temperature.setText(self.temp)
+        self.temperature_like.setText(self.temp_like)
+        self.humidity.setText(self.hum)
+        self.cloudness.setText(self.clouds)
+        self.pressure.setText(self.press)
+
+
 
 
 if __name__ == '__main__':
-    app = QApplication(sys.argv)
-    ex = MainWidget()
-    ex.show()
-    sys.exit(app.exec_())
+    try:
+        app = QApplication(sys.argv)
+        ex = MainWidget()
+        ex.show()
+        sys.exit(app.exec_())
+    except Exception as e:
+        print(e)
 

@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>583</width>
-    <height>500</height>
+    <width>787</width>
+    <height>601</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -18,9 +18,9 @@
     <property name="geometry">
      <rect>
       <x>0</x>
-      <y>-60</y>
-      <width>901</width>
-      <height>871</height>
+      <y>0</y>
+      <width>1031</width>
+      <height>700</height>
      </rect>
     </property>
     <property name="styleSheet">
@@ -30,7 +30,7 @@
      <string/>
     </property>
     <property name="pixmap">
-     <pixmap>картинкни/ракета для регистрации.jpg</pixmap>
+     <pixmap>weather-photos/register.jpg</pixmap>
     </property>
     <property name="scaledContents">
      <bool>true</bool>
@@ -39,16 +39,16 @@
    <widget class="QLabel" name="name_registration">
     <property name="geometry">
      <rect>
-      <x>160</x>
-      <y>0</y>
-      <width>231</width>
-      <height>71</height>
+      <x>0</x>
+      <y>10</y>
+      <width>760</width>
+      <height>100</height>
      </rect>
     </property>
     <property name="font">
      <font>
       <family>Nirmala UI</family>
-      <pointsize>20</pointsize>
+      <pointsize>26</pointsize>
       <weight>50</weight>
       <bold>false</bold>
      </font>
@@ -56,18 +56,21 @@
     <property name="styleSheet">
      <string notr="true">
     min-width: 10em;
-    padding: 16px;</string>
+    padding: 16px; color:white</string>
     </property>
     <property name="text">
      <string>Регистрация</string>
+    </property>
+    <property name="alignment">
+     <set>Qt::AlignCenter</set>
     </property>
    </widget>
    <widget class="QLabel" name="login_title">
     <property name="geometry">
      <rect>
-      <x>230</x>
-      <y>60</y>
-      <width>81</width>
+      <x>0</x>
+      <y>90</y>
+      <width>760</width>
       <height>31</height>
      </rect>
     </property>
@@ -76,26 +79,39 @@
       <pointsize>18</pointsize>
      </font>
     </property>
+    <property name="styleSheet">
+     <string notr="true">color:white</string>
+    </property>
     <property name="text">
-     <string>Логин</string>
+     <string>Логин:</string>
+    </property>
+    <property name="alignment">
+     <set>Qt::AlignCenter</set>
     </property>
    </widget>
    <widget class="QLineEdit" name="login">
     <property name="geometry">
      <rect>
-      <x>140</x>
-      <y>96</y>
-      <width>261</width>
+      <x>250</x>
+      <y>130</y>
+      <width>260</width>
       <height>22</height>
      </rect>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">QLineEdit
+{
+background-color: rgba(255, 255, 254, 100);
+border: none;
+}</string>
     </property>
    </widget>
    <widget class="QLabel" name="password_title2">
     <property name="geometry">
      <rect>
-      <x>140</x>
-      <y>184</y>
-      <width>261</width>
+      <x>0</x>
+      <y>230</y>
+      <width>760</width>
       <height>41</height>
      </rect>
     </property>
@@ -104,16 +120,22 @@
       <pointsize>18</pointsize>
      </font>
     </property>
+    <property name="styleSheet">
+     <string notr="true">color:white</string>
+    </property>
     <property name="text">
-     <string>Повторите пароль</string>
+     <string>Повторите пароль:</string>
+    </property>
+    <property name="alignment">
+     <set>Qt::AlignCenter</set>
     </property>
    </widget>
    <widget class="QLabel" name="password_title1">
     <property name="geometry">
      <rect>
-      <x>223</x>
-      <y>117</y>
-      <width>101</width>
+      <x>0</x>
+      <y>160</y>
+      <width>760</width>
       <height>41</height>
      </rect>
     </property>
@@ -122,106 +144,92 @@
       <pointsize>18</pointsize>
      </font>
     </property>
+    <property name="styleSheet">
+     <string notr="true">color:white</string>
+    </property>
     <property name="text">
-     <string>Пароль</string>
+     <string>Пароль:</string>
+    </property>
+    <property name="alignment">
+     <set>Qt::AlignCenter</set>
     </property>
    </widget>
    <widget class="QLineEdit" name="password">
     <property name="geometry">
      <rect>
-      <x>140</x>
-      <y>163</y>
+      <x>250</x>
+      <y>200</y>
       <width>261</width>
       <height>22</height>
      </rect>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">QLineEdit
+{
+background-color: rgba(255, 255, 254, 100);
+border: none;
+}</string>
     </property>
    </widget>
    <widget class="QLineEdit" name="password_2">
     <property name="geometry">
      <rect>
-      <x>140</x>
-      <y>230</y>
+      <x>250</x>
+      <y>270</y>
       <width>261</width>
       <height>22</height>
      </rect>
     </property>
-   </widget>
-   <widget class="QCheckBox" name="statement">
-    <property name="geometry">
-     <rect>
-      <x>140</x>
-      <y>310</y>
-      <width>261</width>
-      <height>20</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>Линцензионное соглашение</string>
-    </property>
-   </widget>
-   <widget class="QLabel" name="statement_license_agreement">
-    <property name="geometry">
-     <rect>
-      <x>140</x>
-      <y>340</y>
-      <width>141</width>
-      <height>16</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>Вы можете прочитать </string>
-    </property>
-   </widget>
-   <widget class="QPushButton" name="license_agreement">
-    <property name="geometry">
-     <rect>
-      <x>280</x>
-      <y>330</y>
-      <width>91</width>
-      <height>31</height>
-     </rect>
-    </property>
     <property name="styleSheet">
-     <string notr="true"/>
-    </property>
-    <property name="text">
-     <string>Тут</string>
+     <string notr="true">QLineEdit
+{
+background-color: rgba(255, 255, 254, 100);
+border: none;
+}</string>
     </property>
    </widget>
    <widget class="QPushButton" name="registration">
     <property name="geometry">
      <rect>
-      <x>180</x>
-      <y>370</y>
-      <width>161</width>
-      <height>41</height>
+      <x>0</x>
+      <y>420</y>
+      <width>760</width>
+      <height>40</height>
      </rect>
     </property>
     <property name="font">
      <font>
-      <pointsize>12</pointsize>
+      <pointsize>20</pointsize>
       <weight>50</weight>
       <bold>false</bold>
      </font>
     </property>
     <property name="styleSheet">
-     <string notr="true"/>
+     <string notr="true">QPushButton
+{color: white ;
+border-radius: 10px; 
+}</string>
     </property>
     <property name="text">
-     <string>Регистрация</string>
+     <string>Зарегистрироваться</string>
     </property>
    </widget>
    <widget class="QLabel" name="error_message">
     <property name="geometry">
      <rect>
-      <x>80</x>
-      <y>250</y>
-      <width>371</width>
-      <height>51</height>
+      <x>100</x>
+      <y>310</y>
+      <width>560</width>
+      <height>50</height>
      </rect>
     </property>
+    <property name="font">
+     <font>
+      <pointsize>14</pointsize>
+     </font>
+    </property>
     <property name="styleSheet">
-     <string notr="true">color: white;</string>
+     <string notr="true">color: red;</string>
     </property>
     <property name="text">
      <string/>
@@ -230,19 +238,79 @@
      <set>Qt::AlignCenter</set>
     </property>
    </widget>
+   <widget class="QPushButton" name="login_page">
+    <property name="geometry">
+     <rect>
+      <x>0</x>
+      <y>370</y>
+      <width>760</width>
+      <height>40</height>
+     </rect>
+    </property>
+    <property name="font">
+     <font>
+      <pointsize>16</pointsize>
+      <weight>50</weight>
+      <bold>false</bold>
+     </font>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">QPushButton
+{color: white ;
+border-radius: 10px; 
+}</string>
+    </property>
+    <property name="text">
+     <string>На страницу входа</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_2">
+    <property name="geometry">
+     <rect>
+      <x>190</x>
+      <y>30</y>
+      <width>380</width>
+      <height>440</height>
+     </rect>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">QLabel{ background-color: rgba(20, 20, 20, 100); border-radius: 10%;}</string>
+    </property>
+    <property name="text">
+     <string/>
+    </property>
+   </widget>
+   <zorder>label</zorder>
+   <zorder>label_2</zorder>
+   <zorder>password_2</zorder>
+   <zorder>password</zorder>
+   <zorder>login</zorder>
+   <zorder>name_registration</zorder>
+   <zorder>login_title</zorder>
+   <zorder>password_title2</zorder>
+   <zorder>password_title1</zorder>
+   <zorder>registration</zorder>
+   <zorder>error_message</zorder>
+   <zorder>login_page</zorder>
   </widget>
   <widget class="QMenuBar" name="menubar">
    <property name="geometry">
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>583</width>
-     <height>26</height>
+     <width>787</width>
+     <height>21</height>
     </rect>
    </property>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
  </widget>
+ <tabstops>
+  <tabstop>login</tabstop>
+  <tabstop>password</tabstop>
+  <tabstop>password_2</tabstop>
+  <tabstop>registration</tabstop>
+ </tabstops>
  <resources>
   <include location="помощник регистрации.qrc"/>
  </resources>
