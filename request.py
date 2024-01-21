@@ -36,5 +36,4 @@ def weather_request(update_geo, IP):
     }
     response = requests.get(url=url, params=getparams)
     data = response.json()
-    print(data)
     return data

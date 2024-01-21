@@ -3,15 +3,12 @@ import datetime
 import sys
 import random
 
+
 from threading import Timer
 
 from PyQt5 import uic
 from PyQt5.QtGui import QPixmap
-from PyQt5.QtWidgets import QApplication, QMainWindow, QInputDialog
-
-from matplotlib.backends.qt_compat import QtCore, QtWidgets
-from matplotlib.backends.backend_qt5agg import FigureCanvas, NavigationToolbar2QT as NavigationToolbar
-from matplotlib.figure import Figure
+from PyQt5.QtWidgets import QApplication, QMainWindow, QInputDialog, QWidget, QVBoxLayout
 
 from geopy.geocoders import Nominatim
 
@@ -22,6 +19,8 @@ from translatepy.translators.yandex import YandexTranslate
 translator = YandexTranslate()
 
 import http.client
+
+from graphic import Graphic
 
 def valid_ip(IP):
     ip_split = list(map(int, str(IP).split('.')))
@@ -41,7 +40,7 @@ def getplace(lat, lon):
         return 0
     return location
 
-def translate_from_en_to_ru(word):
+def translate(word):
     return translator.translate(word, 'ru')
 
 class MainWidget(QMainWindow):
@@ -49,7 +48,6 @@ class MainWidget(QMainWindow):
         super().__init__()
         uic.loadUi('Начальный Экран(Вход).ui', self)
         self.mistakes.hide()
-        self.statusBar().hide()
         self.setFixedSize(760, 500)
         self.going.clicked.connect(self.allowance)
         self.registrationbutton.clicked.connect(self.register)
@@ -64,9 +62,12 @@ class MainWidget(QMainWindow):
             and Acc.password='{introduced_password}'""").fetchall()
         if result:
             for elem in result:
-                self.open_weather = Open_weather([elem[0], elem[1]])
-                self.open_weather.show()
-                self.hide()
+                try:
+                    self.open_menu = WeatherMonitoring([elem[0], elem[1]])
+                    self.open_menu.show()
+                    self.hide()
+                except Exception as e:
+                    print(e)
         else:
             self.mistakes.show()
         con.close()
@@ -82,8 +83,7 @@ class Registration(QMainWindow):
     def __init__(self):
         super().__init__()
         uic.loadUi('Регистрация.ui', self)
-        self.statusBar().hide()
-        self.setFixedSize(760, 500)
+        self.setBaseSize(760, 500)
         self.registration.clicked.connect(self.register_an_account)
         self.login_page.clicked.connect(self.back_to_login)
 
@@ -148,14 +148,14 @@ class Registration(QMainWindow):
 
 
 
-class Open_weather(QMainWindow):
+class WeatherMonitoring(QMainWindow):
     def __init__(self, account):
         super().__init__()
         uic.loadUi('Главный экран(Погода).ui', self)
-        self.statusBar().hide()
-        self.setFixedSize(760, 500)
+        self.setBaseSize(760, 500)
         self.account = account
         self.IP = self.account[0]
+
 
         try:
             self.get_weather()
@@ -166,31 +166,34 @@ class Open_weather(QMainWindow):
         self.update_geo.clicked.connect(self.get_weather_update_geo)
 
     def set_background(self, weather):
+        weather = 'Drizzle'
         if weather == 'Clear':
-            pixmap = QPixmap('C:/Users/sasak/PycharmProjects/10_class_predprof/weather-photos/background/clear.jpg')
+            link = 'C:/Users/sasak/PycharmProjects/10_class_predprof/weather-photos/background/clear.jpg'
         elif weather == 'Clouds':
-            pixmap = QPixmap('C:/Users/sasak/PycharmProjects/10_class_predprof/weather-photos/background/cloudy.png')
+            link = 'C:/Users/sasak/PycharmProjects/10_class_predprof/weather-photos/background/cloudy.png'
         elif weather == 'Snow':
-            pixmap = QPixmap('C:/Users/sasak/PycharmProjects/10_class_predprof/weather-photos/background/snow.jpg')
+            link = 'C:/Users/sasak/PycharmProjects/10_class_predprof/weather-photos/background/snow.jpg'
         elif weather == 'Rain':
-            pixmap = QPixmap('C:/Users/sasak/PycharmProjects/10_class_predprof/weather-photos/background/rain.jpg')
+            link = 'C:/Users/sasak/PycharmProjects/10_class_predprof/weather-photos/background/rain.jpg'
         elif weather == 'Drizzle':
-            pixmap = QPixmap('C:/Users/sasak/PycharmProjects/10_class_predprof/weather-photos/background/drizzle.png')
+            link = 'C:/Users/sasak/PycharmProjects/10_class_predprof/weather-photos/background/drizzle.jpg'
         elif weather == 'Thunderstorm':
-            pixmap = QPixmap('C:/Users/sasak/PycharmProjects/10_class_predprof/weather-photos/background/thunder.jpg')
+            link = 'C:/Users/sasak/PycharmProjects/10_class_predprof/weather-photos/background/thunder.jpg'
         elif weather == 'Mist' or weather == 'Fog' or weather == 'Smoke' or weather == 'Haze':
-            pixmap = QPixmap('C:/Users/sasak/PycharmProjects/10_class_predprof/weather-photos/background/fog.jpg')
+            link = 'C:/Users/sasak/PycharmProjects/10_class_predprof/weather-photos/background/fog.jpg'
         elif weather == 'Tornado':
-            pixmap = QPixmap('C:/Users/sasak/PycharmProjects/10_class_predprof/weather-photos/background/tornado.jpg')
+            link = 'C:/Users/sasak/PycharmProjects/10_class_predprof/weather-photos/background/tornado.jpg'
         elif weather == 'Squall':
-            pixmap = QPixmap('C:/Users/sasak/PycharmProjects/10_class_predprof/weather-photos/background/squall.jpg')
+            link = 'C:/Users/sasak/PycharmProjects/10_class_predprof/weather-photos/background/squall.jpg'
         elif weather == 'Ash':
-            pixmap = QPixmap('C:/Users/sasak/PycharmProjects/10_class_predprof/weather-photos/background/ash.jpg')
+            link = 'C:/Users/sasak/PycharmProjects/10_class_predprof/weather-photos/background/ash.jpg'
         elif weather == 'Dust' or weather == 'Sand':
-            pixmap = QPixmap('C:/Users/sasak/PycharmProjects/10_class_predprof/weather-photos/background/dust.jpg')
+            link = 'C:/Users/sasak/PycharmProjects/10_class_predprof/weather-photos/background/dust.jpg'
         else:
-            pixmap = QPixmap('C:/Users/sasak/PycharmProjects/10_class_predprof/weather-photos/background/clear.jpg')
-        self.background.setPixmap(pixmap)
+            link = 'C:/Users/sasak/PycharmProjects/10_class_predprof/weather-photos/background/clear.jpg'
+        StyleSheet = 'QStackedWidget{background-image: url('+link+'); background-repeat: no-repeat; background-position: center; border-radius: 1%;}'
+        self.background.setStyleSheet(StyleSheet)
+        self.weather_label.setText(str(translate(weather)).replace('Четкий', 'Ясно').replace('Облака', 'Облачно').replace('Моросить', 'Морось'))
 
 
     def get_weather(self):
@@ -234,6 +237,7 @@ class Open_weather(QMainWindow):
         timer = Timer(3.0, self.change_label_update)
         timer.start()
 
+        print(self.data)
         self.temp = str(round(self.data['main']['temp'])) + '°'
         self.temp_like = str(round(self.data['main']['feels_like'])) + '°'
         self.hum = str(round(self.data['main']['humidity'])) + '%'
@@ -251,7 +255,6 @@ class Open_weather(QMainWindow):
         self.place = getplace(self.lat, self.lon)
         if self.place != 0:
             self.loc = str(getplace(self.lat, self.lon)[0]).split(', ')
-            print(self.loc)
             if len(self.loc) <= 4:
                 self.label_geo.setText(str('Текущая локация:\n' + self.loc[0] + ', \n' + self.loc[1]))
             else:

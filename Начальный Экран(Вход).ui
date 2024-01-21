@@ -9,8 +9,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>753</width>
-    <height>530</height>
+    <width>760</width>
+    <height>500</height>
    </rect>
   </property>
   <property name="mouseTracking">
@@ -433,17 +433,6 @@ border: none;
    <zorder>layoutWidget_3</zorder>
    <zorder>titleweather</zorder>
   </widget>
-  <widget class="QMenuBar" name="menubar">
-   <property name="geometry">
-    <rect>
-     <x>0</x>
-     <y>0</y>
-     <width>753</width>
-     <height>26</height>
-    </rect>
-   </property>
-  </widget>
-  <widget class="QStatusBar" name="statusbar"/>
  </widget>
  <resources>
   <include location="помощник банкомата.qrc"/>

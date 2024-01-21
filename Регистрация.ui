@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>787</width>
-    <height>601</height>
+    <width>760</width>
+    <height>500</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -59,7 +59,7 @@
     padding: 16px; color:white</string>
     </property>
     <property name="text">
-     <string>Регистрация</string>
+     <string/>
     </property>
     <property name="alignment">
      <set>Qt::AlignCenter</set>
@@ -293,17 +293,6 @@ border-radius: 10px;
    <zorder>error_message</zorder>
    <zorder>login_page</zorder>
   </widget>
-  <widget class="QMenuBar" name="menubar">
-   <property name="geometry">
-    <rect>
-     <x>0</x>
-     <y>0</y>
-     <width>787</width>
-     <height>21</height>
-    </rect>
-   </property>
-  </widget>
-  <widget class="QStatusBar" name="statusbar"/>
  </widget>
  <tabstops>
   <tabstop>login</tabstop>
