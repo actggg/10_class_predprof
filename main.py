@@ -2,6 +2,9 @@ import sqlite3
 import datetime
 import sys
 import random
+import os
+
+import hashlib
 
 
 from threading import Timer
@@ -48,7 +51,7 @@ class MainWidget(QMainWindow):
         super().__init__()
         uic.loadUi('Начальный Экран(Вход).ui', self)
         self.mistakes.hide()
-        self.setFixedSize(760, 500)
+        self.setBaseSize(760, 500)
         self.going.clicked.connect(self.allowance)
         self.registrationbutton.clicked.connect(self.register)
 
@@ -57,13 +60,17 @@ class MainWidget(QMainWindow):
         introduced_login = self.input_login.text()
         con = sqlite3.connect("аккаунты.db")
         cur = con.cursor()
-        result = cur.execute(
-            f""" Select IP, login from Acc where Acc.login = '{introduced_login}'
-            and Acc.password='{introduced_password}'""").fetchall()
+        result = cur.execute(f""" Select key, salt from Acc where Acc.login = '{introduced_login}'""").fetchall()
         if result:
             for elem in result:
+                key = elem[0]
+                salt = elem[1]
+        new_key = hashlib.pbkdf2_hmac('sha256', introduced_password.encode('utf-8'), salt, 100000)
+        if key == new_key:
+            result = cur.execute(f""" Select IP, login, key, salt from Acc where Acc.login = '{introduced_login}'""").fetchall()
+            for elem in result:
                 try:
-                    self.open_menu = WeatherMonitoring([elem[0], elem[1]])
+                    self.open_menu = WeatherMonitoring([elem[0], elem[1], elem[2], elem[3]])
                     self.open_menu.show()
                     self.hide()
                 except Exception as e:
@@ -115,9 +122,9 @@ class Registration(QMainWindow):
     def register_an_account(self):
         password_errors = {
             1: 'В пароле должны содержаться цифры',
-            2: 'Пароль должен сосотоять из более чем 8 символов',
+            2: 'Пароль должен сосотоять\nиз более чем 8 символов',
             3: 'В пароле должны содержаться буквы',
-            4: 'В пароле должны содержаться большие и маленькие буквы',
+            4: 'В пароле должны содержаться\n большие и маленькие буквы',
             5: 'Слишком простой пароль'
         }
         login_acc = self.login.text()
@@ -125,26 +132,30 @@ class Registration(QMainWindow):
         conn = http.client.HTTPConnection("ifconfig.me")
         conn.request("GET", "/ip")
         ip = str(conn.getresponse().read())[2:-1]
-
-        if login_acc != '' and password_acc != '' and self.password_2.text() != '':
-            if self.password.text() == self.password_2.text():
-                if self.password_verification(password_acc) == 0:
-                    if valid_ip(ip):
-                        con = sqlite3.connect("аккаунты.db")
-                        cursor = con.cursor()
-                        cursor.execute("INSERT INTO Acc(login, password, IP) VALUES(?, ?, ?)", (login_acc, password_acc, ip))
-                        con.commit()
-                        cursor.close()
-                        con.close()
-                        self.back_to_login()
+        salt = os.urandom(32)
+        key = hashlib.pbkdf2_hmac('sha256', password_acc.encode('utf-8'), salt, 100000)
+        try:
+            if login_acc != '' and password_acc != '' and self.password_2.text() != '':
+                if self.password.text() == self.password_2.text():
+                    if self.password_verification(password_acc) == 0:
+                        if valid_ip(ip):
+                            con = sqlite3.connect("аккаунты.db")
+                            cursor = con.cursor()
+                            cursor.execute("INSERT INTO Acc(login, key, salt, IP) VALUES(?, ?, ?, ?)", (login_acc, key, salt, ip))
+                            con.commit()
+                            cursor.close()
+                            con.close()
+                            self.back_to_login()
+                        else:
+                            self.error_message.setText('Некорректный IP-адрес')
                     else:
-                        self.error_message.setText('Некорректный IP-адрес')
+                        self.error_message.setText(password_errors[self.password_verification(password_acc)])
                 else:
-                    self.error_message.setText(password_errors[self.password_verification(password_acc)])
+                    self.error_message.setText('Пароли не совпадают')
             else:
-                self.error_message.setText('Пароли не совпадают')
-        else:
-            self.error_message.setText('Не все поля заполнены')
+                self.error_message.setText('Не все поля заполнены')
+        except Exception as e:
+            print(e)
 
 
 
@@ -166,7 +177,6 @@ class WeatherMonitoring(QMainWindow):
         self.update_geo.clicked.connect(self.get_weather_update_geo)
 
     def set_background(self, weather):
-        weather = 'Drizzle'
         if weather == 'Clear':
             link = 'C:/Users/sasak/PycharmProjects/10_class_predprof/weather-photos/background/clear.jpg'
         elif weather == 'Clouds':

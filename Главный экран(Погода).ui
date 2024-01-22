@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>922</width>
-    <height>561</height>
+    <width>930</width>
+    <height>569</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -46,9 +46,9 @@
            <bool>false</bool>
           </property>
           <property name="styleSheet">
-           <string notr="true">QStackedWidget{background-image: url('C:/Users/sasak/PycharmProjects/10_class_predprof/weather-photos/background/cloudy.png'); background-repeat: no-repeat; background-position: bottom; border-radius: 10%;}</string>
+           <string notr="true">QStackedWidget{background-image: url('C:/Users/sasak/PycharmProjects/10_class_predprof/weather-photos/background/cloudy.png'); background-repeat: no-repeat; background-position: bottom; border-radius: 10%; background-width:700}</string>
           </property>
-          <widget class="QWidget" name="stackedWidgetPage1" native="true">
+          <widget class="QWidget" name="stackedWidgetPage1">
            <layout class="QGridLayout" name="gridLayout" rowstretch="0,0" columnstretch="0,0,0">
             <property name="sizeConstraint">
              <enum>QLayout::SetDefaultConstraint</enum>
@@ -437,7 +437,7 @@
                </property>
                <property name="font">
                 <font>
-                 <pointsize>20</pointsize>
+                 <pointsize>18</pointsize>
                  <weight>75</weight>
                  <bold>true</bold>
                 </font>
@@ -489,7 +489,7 @@
                </property>
                <property name="font">
                 <font>
-                 <pointsize>20</pointsize>
+                 <pointsize>18</pointsize>
                  <weight>75</weight>
                  <bold>true</bold>
                 </font>
@@ -664,7 +664,7 @@
               </property>
               <property name="font">
                <font>
-                <pointsize>16</pointsize>
+                <pointsize>14</pointsize>
                 <weight>75</weight>
                 <bold>true</bold>
                </font>
@@ -693,7 +693,7 @@
               </property>
               <property name="font">
                <font>
-                <pointsize>12</pointsize>
+                <pointsize>10</pointsize>
                 <weight>75</weight>
                 <bold>true</bold>
                </font>
@@ -723,7 +723,7 @@
               </property>
               <property name="font">
                <font>
-                <pointsize>12</pointsize>
+                <pointsize>10</pointsize>
                 <weight>75</weight>
                 <bold>true</bold>
                </font>
