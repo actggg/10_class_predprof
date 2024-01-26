@@ -3,6 +3,7 @@ import datetime
 import sys
 import random
 import os
+import csv
 
 import hashlib
 
@@ -10,8 +11,10 @@ import hashlib
 from threading import Timer
 
 from PyQt5 import uic
-from PyQt5.QtGui import QPixmap
-from PyQt5.QtWidgets import QApplication, QMainWindow, QInputDialog, QWidget, QVBoxLayout
+from PyQt5.QtWidgets import QApplication, QMainWindow, QFileDialog, QDialog
+
+from pyqtgraph import PlotWidget, plot
+import pyqtgraph as pg
 
 from geopy.geocoders import Nominatim
 
@@ -22,8 +25,6 @@ from translatepy.translators.yandex import YandexTranslate
 translator = YandexTranslate()
 
 import http.client
-
-from graphic import Graphic
 
 def valid_ip(IP):
     ip_split = list(map(int, str(IP).split('.')))
@@ -55,6 +56,7 @@ class MainWidget(QMainWindow):
         self.going.clicked.connect(self.allowance)
         self.registrationbutton.clicked.connect(self.register)
 
+
     def allowance(self):
         introduced_password = self.input_password.text()
         introduced_login = self.input_login.text()
@@ -70,7 +72,7 @@ class MainWidget(QMainWindow):
             result = cur.execute(f""" Select IP, login, key, salt from Acc where Acc.login = '{introduced_login}'""").fetchall()
             for elem in result:
                 try:
-                    self.open_menu = WeatherMonitoring([elem[0], elem[1], elem[2], elem[3]])
+                    self.open_menu = MainWindow([elem[0], elem[1], elem[2], elem[3]])
                     self.open_menu.show()
                     self.hide()
                 except Exception as e:
@@ -158,15 +160,56 @@ class Registration(QMainWindow):
             print(e)
 
 
+class Delete_Acc(QDialog):
+    def __init__(self, account):
+        super().__init__()
+        uic.loadUi('Удаление аккаунта.ui', self)
+        self.account = account
+        self.delete_acc_final.clicked.connect(self.acc_del_final)
+        self.back.clicked.connect(self.exit_fnc)
+        self.mistakes.hide()
 
-class WeatherMonitoring(QMainWindow):
+    def acc_del_final(self):
+        introduced_password = self.input_password.text()
+        introduced_login = self.input_login.text()
+        con = sqlite3.connect("аккаунты.db")
+        cur = con.cursor()
+        result = cur.execute(f""" Select key, salt from Acc where Acc.login = '{introduced_login}'""").fetchall()
+        if result:
+            for elem in result:
+                key = elem[0]
+                salt = elem[1]
+        new_key = hashlib.pbkdf2_hmac('sha256', introduced_password.encode('utf-8'), salt, 100000)
+        if key != new_key:
+            self.mistakes.show()
+        else:
+            if self.account[1] != introduced_login:
+                self.mistakes.show()
+            else:
+                cur.execute(f""" Delete from Acc where Acc.login = '{introduced_login}'""").fetchall()
+                con.commit()
+                self.go_home = MainWidget()
+                self.go_home.show()
+                self.hide()
+        con.close()
+
+    def exit_fnc(self):
+        self.open_menu = MainWindow(self.account)
+        self.open_menu.show()
+        self.hide()
+
+class MainWindow(QMainWindow):
     def __init__(self, account):
         super().__init__()
         uic.loadUi('Главный экран(Погода).ui', self)
         self.setBaseSize(760, 500)
         self.account = account
         self.IP = self.account[0]
-
+        self.pathfile = 0
+        self.browse.clicked.connect(self.browsefiles)
+        self.delete_acc.clicked.connect(self.acc_del)
+        self.logout_button.clicked.connect(self.logout)
+        self.exit_button.clicked.connect(self.exit_fnc)
 
         try:
             self.get_weather()
@@ -176,33 +219,79 @@ class WeatherMonitoring(QMainWindow):
         self.update_weather.clicked.connect(self.get_weather)
         self.update_geo.clicked.connect(self.get_weather_update_geo)
 
+    def acc_del(self):
+        self.delete_account = Delete_Acc(self.account)
+        self.delete_account.show()
+        self.hide()
+
+    def logout(self):
+        self.account = []
+        self.go_home = MainWidget()
+        self.go_home.show()
+        self.hide()
+    def exit_fnc(self):
+        sys.exit(app.exec_())
+
+    def browsefiles(self):
+        fname = QFileDialog.getOpenFileName(self, 'Open file', '/', 'Data(*.csv *.xlsx *.xls)')
+        file = fname[0].split('/')[-1]
+        self.pathfile = fname[0]
+        self.filename.setText(file)
+        self.updateplot()
+
+    def updateplot(self):
+        with open(self.pathfile, newline='') as csvfile:
+            spamreader = csv.reader(csvfile, delimiter=' ', quotechar='|')
+            for row in spamreader:
+                source = ', '.join(row)
+            data = list(map(float, source.split(',')))
+        '''
+        date = datetime.datetime(2024, 2, 1, 0, 0, 0)
+        date_str = date.strftime('%d.%m.%Y %H:%M:%S')
+        '''
+        date_index = []
+        length = len(data)
+        for i in range(0, 3 * length, 3):
+            date_index.append(i)
+        self.plot(date_index, data)
+
+    def plot(self, date_index, data):
+        try:
+            self.graphWidget.removeItem(self.plot_widget)
+        except:
+            pass
+        self.plot_widget = pg.PlotDataItem(date_index, data, pen='w')
+        self.graphWidget.addItem(self.plot_widget)
+
     def set_background(self, weather):
         if weather == 'Clear':
-            link = 'C:/Users/sasak/PycharmProjects/10_class_predprof/weather-photos/background/clear.jpg'
+            image = 'clear.jpg'
         elif weather == 'Clouds':
-            link = 'C:/Users/sasak/PycharmProjects/10_class_predprof/weather-photos/background/cloudy.png'
+            image = 'cloudy.png'
         elif weather == 'Snow':
-            link = 'C:/Users/sasak/PycharmProjects/10_class_predprof/weather-photos/background/snow.jpg'
+            image = 'snow.jpg'
         elif weather == 'Rain':
-            link = 'C:/Users/sasak/PycharmProjects/10_class_predprof/weather-photos/background/rain.jpg'
+            image = 'rain.jpg'
         elif weather == 'Drizzle':
-            link = 'C:/Users/sasak/PycharmProjects/10_class_predprof/weather-photos/background/drizzle.jpg'
+            image = 'drizzle.jpg'
         elif weather == 'Thunderstorm':
-            link = 'C:/Users/sasak/PycharmProjects/10_class_predprof/weather-photos/background/thunder.jpg'
+            image = 'thunder.jpg'
         elif weather == 'Mist' or weather == 'Fog' or weather == 'Smoke' or weather == 'Haze':
-            link = 'C:/Users/sasak/PycharmProjects/10_class_predprof/weather-photos/background/fog.jpg'
+            image = 'fog.jpg'
         elif weather == 'Tornado':
-            link = 'C:/Users/sasak/PycharmProjects/10_class_predprof/weather-photos/background/tornado.jpg'
+            image = 'tornado.jpg'
         elif weather == 'Squall':
-            link = 'C:/Users/sasak/PycharmProjects/10_class_predprof/weather-photos/background/squall.jpg'
+            image = 'squall.jpg'
         elif weather == 'Ash':
-            link = 'C:/Users/sasak/PycharmProjects/10_class_predprof/weather-photos/background/ash.jpg'
+            image = 'ash.jpg'
         elif weather == 'Dust' or weather == 'Sand':
-            link = 'C:/Users/sasak/PycharmProjects/10_class_predprof/weather-photos/background/dust.jpg'
+            image = 'dust.jpg'
         else:
-            link = 'C:/Users/sasak/PycharmProjects/10_class_predprof/weather-photos/background/clear.jpg'
-        StyleSheet = 'QStackedWidget{background-image: url('+link+'); background-repeat: no-repeat; background-position: center; border-radius: 1%;}'
-        self.background.setStyleSheet(StyleSheet)
+            image = 'clear.jpg'
+        StyleSheet = 'QStackedWidget{background-image: url(C:/Users/sasak/PycharmProjects/10_class_predprof/weather-photos/background/'+image+'); background-repeat: no-repeat; background-position: center; border-radius: 10%;}'
+        self.background_1.setStyleSheet(StyleSheet)
+        self.background_2.setStyleSheet(StyleSheet)
+        self.background_3.setStyleSheet(StyleSheet)
         self.weather_label.setText(str(translate(weather)).replace('Четкий', 'Ясно').replace('Облака', 'Облачно').replace('Моросить', 'Морось'))
 
 

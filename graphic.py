@@ -1,36 +1,22 @@
 import sys
-from PyQt5.QtWidgets import QDialog, QApplication, QPushButton, QVBoxLayout, QMainWindow
-from PyQt5 import QtCore
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
-import matplotlib.pyplot as plt
-import random
+from PyQt5 import QtWidgets, uic
+from pyqtgraph import PlotWidget, plot
+import pyqtgraph as pg
 
-class Graphic(QDialog):
-    def __init__(self, parent=None):
-        super(Graphic, self).__init__(parent)
-        self.setFixedSize(760, 500)
-        self.setWindowFlag(QtCore.Qt.WindowContextHelpButtonHint, False)
-        self.figure = plt.figure()
-        self.canvas = FigureCanvas(self.figure)
-        self.toolbar = NavigationToolbar(self.canvas, self)
-        self.button = QPushButton('Plot')
-        self.button.clicked.connect(self.plot)
-        layout = QVBoxLayout()
-        layout.addWidget(self.toolbar)
-        layout.addWidget(self.canvas)
-        layout.addWidget(self.button)
-        self.setLayout(layout)
 
-    def plot(self):
-        data = [random.random() for i in range(10)]
-        self.figure.clear()
-        ax = self.figure.add_subplot(111)
-        ax.plot(data, '*-')
-        self.canvas.draw()
+class MainWindow(QtWidgets.QMainWindow):
+
+    def __init__(self, *args, **kwargs):
+        super(MainWindow, self).__init__(*args, **kwargs)
+        uic.loadUi('Главный экран(Погода).ui', self)
+        self.plot([1,2,3,4,5,6,7,8,9,10], [30,32,34,32,33,31,29,32,35,45])
+
+
+    def plot(self, hour, temperature):
+        self.graphWidget.plot(hour, temperature)
 
 if __name__ == '__main__':
-    app = QApplication(sys.argv)
-    main = Graphic()
+    app = QtWidgets.QApplication(sys.argv)
+    main = MainWindow()
     main.show()
     sys.exit(app.exec_())

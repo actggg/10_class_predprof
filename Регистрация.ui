@@ -55,7 +55,7 @@
         <property name="bottomMargin">
          <number>0</number>
         </property>
-        <item alignment="Qt::AlignHCenter|Qt::AlignVCenter">
+        <item>
          <widget class="QGroupBox" name="groupBox">
           <property name="minimumSize">
            <size>
@@ -318,15 +318,15 @@ border-radius: 10px;
           </widget>
           <zorder>label_2</zorder>
           <zorder>registration</zorder>
-          <zorder>login_title</zorder>
+          <zorder>login_page</zorder>
+          <zorder>error_message</zorder>
           <zorder>password_title2</zorder>
           <zorder>password_2</zorder>
-          <zorder>password_title1</zorder>
-          <zorder>error_message</zorder>
           <zorder>password</zorder>
-          <zorder>login</zorder>
-          <zorder>login_page</zorder>
+          <zorder>password_title1</zorder>
           <zorder>login_title_2</zorder>
+          <zorder>login_title</zorder>
+          <zorder>login</zorder>
          </widget>
         </item>
        </layout>
