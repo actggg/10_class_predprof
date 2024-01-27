@@ -11,6 +11,7 @@ def loc_request(IP):
     }
     response = requests.get(url=url, params=getparams)
     data = response.json()
+    print(data)
     lat = data['latitude']
     lon = data['longitude']
     return lat, lon
