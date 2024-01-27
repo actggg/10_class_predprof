@@ -9,8 +9,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>564</width>
-    <height>484</height>
+    <width>556</width>
+    <height>476</height>
    </rect>
   </property>
   <property name="mouseTracking">
@@ -27,7 +27,7 @@
   </property>
   <widget class="QWidget" name="centralwidget">
    <property name="styleSheet">
-    <string notr="true">QStackedWidget{background-image: url('C:/Users/sasak/PycharmProjects/10_class_predprof/weather-photos/login.jpg'); background-repeat: no-repeat; background-position: bottom;}</string>
+    <string notr="true">QStackedWidget{background-image: url('./weather-photos/login.jpg'); background-repeat: no-repeat; background-position: bottom;}</string>
    </property>
    <layout class="QVBoxLayout" name="verticalLayout">
     <item>

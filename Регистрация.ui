@@ -36,7 +36,7 @@
        <bool>false</bool>
       </property>
       <property name="styleSheet">
-       <string notr="true">QStackedWidget{background-image: url('C:/Users/sasak/PycharmProjects/10_class_predprof/weather-photos/register.jpg'); background-repeat: no-repeat; background-position: bottom;}</string>
+       <string notr="true">QStackedWidget{background-image: url('./weather-photos/register.jpg'); background-repeat: no-repeat; background-position: bottom;}</string>
       </property>
       <widget class="QWidget" name="page">
        <layout class="QHBoxLayout" name="horizontalLayout_2">

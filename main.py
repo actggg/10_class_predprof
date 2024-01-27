@@ -306,7 +306,7 @@ class MainWindow(QMainWindow):
             image = 'dust.jpg'
         else:
             image = 'clear.jpg'
-        StyleSheet = 'QStackedWidget{background-image: url(C:/Users/sasak/PycharmProjects/10_class_predprof/weather-photos/background/'+image+'); background-repeat: no-repeat; background-position: center; border-radius: 10%;}'
+        StyleSheet = 'QStackedWidget{background-image: url(./weather-photos/background/'+image+'); background-repeat: no-repeat; background-position: center; border-radius: 10%;}'
         self.background_1.setStyleSheet(StyleSheet)
         self.background_2.setStyleSheet(StyleSheet)
         self.background_3.setStyleSheet(StyleSheet)
