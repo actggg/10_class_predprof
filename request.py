@@ -11,7 +11,6 @@ def loc_request(IP):
     }
     response = requests.get(url=url, params=getparams)
     data = response.json()
-    print(data)
     lat = data['latitude']
     lon = data['longitude']
     return lat, lon
@@ -20,7 +19,6 @@ def loc_request(IP):
 def weather_request(update_geo, IP):
     with open('API_KEY_WEATHER.txt') as f:
         key = f.readline()
-
     url = 'https://api.openweathermap.org/data/2.5/weather'
     if update_geo:
         lat, lon = loc_request(IP)

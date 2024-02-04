@@ -4,9 +4,11 @@ import sys
 import random
 import os
 import csv
+import pandas as pd
 
 import sys
 import matplotlib
+import matplotlib.pyplot as plt
 matplotlib.use('Qt5Agg')
 
 from PyQt5 import QtCore, QtGui, QtWidgets
@@ -75,6 +77,10 @@ class MainWidget(QMainWindow):
             for elem in result:
                 key = elem[0]
                 salt = elem[1]
+        else:
+            self.mistakes.show()
+            con.close()
+            return
         new_key = hashlib.pbkdf2_hmac('sha256', introduced_password.encode('utf-8'), salt, 100000)
         if key == new_key:
             result = cur.execute(f""" Select IP, login, key, salt from Acc where Acc.login = '{introduced_login}'""").fetchall()
@@ -87,6 +93,8 @@ class MainWidget(QMainWindow):
                     print(e)
         else:
             self.mistakes.show()
+            con.close()
+            return
         con.close()
 
 
@@ -110,8 +118,8 @@ class Registration(QMainWindow):
         self.hide()
 
     def password_verification(self, password):
-        lit_ang_connections = 'qwertyuiop        asdfghjkl      zxcvbnm'
-        lit_rus_connections = 'йцукенгшщзхъ     фывапролджэё      ячсмитьбю'
+        lit_ang_connections = 'qwertyuiopasdfghjklzxcvbnm'
+        lit_rus_connections = 'йцукенгшщзхъфывапролджэёячсмитьбю'
         if list(set(list(password)) & set(['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'])) == []:
             return 1
         elif len(password) <= 8:
@@ -170,7 +178,11 @@ class Registration(QMainWindow):
 class MplCanvas(FigureCanvasQTAgg):
     def __init__(self, parent=None, width=5, height=4, dpi=100):
         fig = Figure(figsize=(width, height), dpi=dpi)
-        self.axes = fig.add_subplot(111)
+        self.axes_temp = fig.add_subplot(211)
+        self.axes_wind = fig.add_subplot(212)
+        fig.subplots_adjust(top = 0.921, bottom = 0.139,
+                            left = 0.069, right = 0.983,
+                            hspace = 0.624, wspace = 0.2)
         super(MplCanvas, self).__init__(fig)
 
 class Delete_Acc(QDialog):
@@ -223,11 +235,11 @@ class MainWindow(QMainWindow):
         self.delete_acc.clicked.connect(self.acc_del)
         self.logout_button.clicked.connect(self.logout)
         self.exit_button.clicked.connect(self.exit_fnc)
-        sc = MplCanvas(self, width=5, height=4, dpi=100)
-        sc.axes.plot([0, 1, 2, 3, 4], [10, 1, 20, 3, 40])
-        toolbar = NavigationToolbar(sc, self)
-        self.vis.addWidget(toolbar)
-        self.vis.addWidget(sc)
+        self.filetype = 'CSV'
+        self.CSV_type.toggled.connect(self.CSV)
+        self.XLSX_type.toggled.connect(self.XLSX)
+        self.make_forecast.clicked.connect(self.do_forecast)
+
 
         try:
             self.get_weather()
@@ -236,6 +248,36 @@ class MainWindow(QMainWindow):
 
         self.update_weather.clicked.connect(self.get_weather)
         self.update_geo.clicked.connect(self.get_weather_update_geo)
+
+    def do_forecast(self):
+        try:
+            for i in reversed(range(self.vis.count())):
+                self.vis.itemAt(i).widget().deleteLater()
+            self.date_begin = self.forecast_begin.dateTime().toPyDateTime().date()
+            self.date_finish = self.forecast_finish.dateTime().toPyDateTime().date()
+
+            df = pd.read_csv('Forecast.csv')
+            df.set_index('date', inplace=True)
+
+            table_temp = df['temperature'][(str(self.date_begin) + '-00'):(str(self.date_finish) + '-00')]
+            list_table_temp = table_temp.tolist()
+            table_temp = table_temp.astype(float)
+            table_temp.index = pd.to_datetime(table_temp.index, format='%Y-%m-%d-%H')
+
+            table_wind = df['wind'][(str(self.date_begin) + '-00'):(str(self.date_finish) + '-00')]
+            list_table_wind = table_wind.tolist()
+            table_wind = table_temp.astype(float)
+            table_wind.index = pd.to_datetime(table_wind.index, format='%Y-%m-%d-%H')
+
+            self.draw_plot([table_temp.index, table_wind.index], [list_table_temp, list_table_wind], ['axes_temp', 'axes_wind'])
+
+        except Exception as e:
+            print(e)
+    def XLSX(self):
+        self.filetype = 'XLSX'
+
+    def CSV(self):
+        self.filetype = 'CSV'
 
     def acc_del(self):
         self.delete_account = Delete_Acc(self.account)
@@ -251,65 +293,71 @@ class MainWindow(QMainWindow):
         sys.exit(app.exec_())
 
     def browsefiles(self):
-        fname = QFileDialog.getOpenFileName(self, 'Open file', '/', 'Data(*.csv *.xlsx *.xls)')
+        fname = QFileDialog.getOpenFileName(self, 'Open file', '/', 'Data(*.{})'.format(self.filetype.lower()))
         file = fname[0].split('/')[-1]
         self.pathfile = fname[0]
         self.filename.setText(file)
-        self.updateplot()
+        self.update_plot()
 
-    def updateplot(self):
-        with open(self.pathfile, newline='') as csvfile:
-            spamreader = csv.reader(csvfile, delimiter=' ', quotechar='|')
-            for row in spamreader:
-                source = ', '.join(row)
-            data = list(map(float, source.split(',')))
-        '''
-        date = datetime.datetime(2024, 2, 1, 0, 0, 0)
-        date_str = date.strftime('%d.%m.%Y %H:%M:%S')
-        '''
-        date_index = []
-        length = len(data)
-        for i in range(0, 3 * length, 3):
-            date_index.append(i)
-        self.plot(date_index, data)
-
-    def plot(self, date_index, data):
+    def update_plot(self):
         try:
-            self.graphWidget.removeItem(self.plot_widget)
-        except:
-            pass
-        self.plot_widget = pg.PlotDataItem(date_index, data, pen='w')
-        self.graphWidget.addItem(self.plot_widget)
+            if self.filetype == 'CSV':
+                df = pd.read_csv(self.pathfile)
+            elif self.filetype == 'XLSX':
+                df = pd.read_excel(self.pathfile)
+            else:
+                return
+            dictionary = {
+                'температура': 'temperature',
+                'ветер': 'wind',
+                'давление': 'pressure',
+                'влажность': 'humidity'
+            }
+            df.set_index('date', inplace=True)
+            table = df[dictionary['температура']][str(self.date_begin):str(self.date_finish)]
+            list_table = table.tolist()
+            table = table.astype(float)
+            table.index = pd.to_datetime(table.index)
+            self.draw_plot(table.index, list_table)
+        except Exception as e:
+            print(e)
+
+
+    def draw_plot(self, date_index, data, axes):
+        sc = MplCanvas(self, width=20, height=1, dpi=100)
+        n = len(axes)
+        for i in range(n):
+            exec('sc.{}.plot(date_index[i], data[i], marker="o")'.format(axes[i]))
+            exec('sc.{}.set_ylim((min(data[i]) - 1, max(data[i]) + 3))'.format(axes[i]))
+            exec('sc.{}.set_xticks(sc.{}.get_xticks(), sc.{}.get_xticklabels(), rotation=20, ha="right")'.format(axes[i], axes[i], axes[i]))
+            exec('sc.{}.set_title("{}")'.format(axes[i], axes[i][5::]))
+            for j in range(len(date_index[i])):
+                exec('sc.{}.annotate(round(data[i][j], 1), (date_index[i][j], data[i][j] + 0.4))'.format(axes[i]))
+
+        toolbar = NavigationToolbar(sc, self)
+        self.vis.addWidget(toolbar)
+        self.vis.addWidget(sc)
 
     def set_background(self, weather):
-        if weather == 'Clear':
-            image = 'clear.jpg'
-        elif weather == 'Clouds':
-            image = 'cloudy.png'
-        elif weather == 'Snow':
-            image = 'snow.jpg'
-        elif weather == 'Rain':
-            image = 'rain.jpg'
-        elif weather == 'Drizzle':
-            image = 'drizzle.jpg'
-        elif weather == 'Thunderstorm':
-            image = 'thunder.jpg'
-        elif weather == 'Mist' or weather == 'Fog' or weather == 'Smoke' or weather == 'Haze':
-            image = 'fog.jpg'
-        elif weather == 'Tornado':
-            image = 'tornado.jpg'
-        elif weather == 'Squall':
-            image = 'squall.jpg'
-        elif weather == 'Ash':
-            image = 'ash.jpg'
-        elif weather == 'Dust' or weather == 'Sand':
-            image = 'dust.jpg'
-        else:
-            image = 'clear.jpg'
-        StyleSheet = 'QStackedWidget{background-image: url(./weather-photos/background/'+image+'); background-repeat: no-repeat; background-position: center; border-radius: 10%;}'
+        weather_image = {
+            'Clear': 'clear.jpg',
+            'Clouds': 'cloudy.png',
+            'Snow': 'snow.jpg',
+            'Rain': 'rain.jpg',
+            'Drizzle': 'drizzle.jpg',
+            'Thunderstorm': 'thunder.jpg',
+            'Tornado': 'tornado.jpg',
+            'Squall': 'squall.jpg',
+            'Ash': 'ash.jpg',
+        }
+        Fog = dict.fromkeys(['Mist', 'Fog', 'Smoke', 'Haze'], 'fog.jpg')
+        Dust = dict.fromkeys(['Dust', 'Sand'], 'dust.jpg')
+        weather_image = dict(list(weather_image.items()) + list(Fog.items()) + list(Dust.items()))
+        StyleSheet = 'QStackedWidget{background-image: url(./weather-photos/background/'+weather_image[weather]+'); background-repeat: no-repeat; background-position: center; border-radius: 10%;}'
         self.background_1.setStyleSheet(StyleSheet)
         self.background_2.setStyleSheet(StyleSheet)
         self.background_3.setStyleSheet(StyleSheet)
+        self.background_4.setStyleSheet(StyleSheet)
         self.weather_label.setText(str(translate(weather)).replace('Четкий', 'Ясно').replace('Облака', 'Облачно').replace('Моросить', 'Морось'))
 
 
@@ -328,21 +376,21 @@ class MainWindow(QMainWindow):
         return date
 
     def wind_dir_get(self, deg):
-        if round(deg / 22.5) == 0 or round(deg / 22.5) == 15:
+        if 337.5 <= deg <= 360 or 0 <= deg <= 22.5:
             return 'С'
-        elif round(deg / 45) == 1:
+        elif 22.5 <= deg <= 67.5:
             return 'СВ'
-        elif round(deg / 45) == 2:
+        elif 67.5 <= deg <= 112.5:
             return 'В'
-        elif round(deg / 45) == 3:
+        elif 112.5 <= deg <= 157.5:
             return 'ЮВ'
-        elif round(deg / 45) == 4:
+        elif 157.5 <= deg <= 202.5:
             return 'Ю'
-        elif round(deg / 45) == 5:
+        elif 202.5 <= deg <= 247.5:
             return 'ЮЗ'
-        elif round(deg / 45) == 6:
+        elif 247.5 <= deg <= 292.5:
             return 'З'
-        elif round(deg / 45) == 7:
+        elif 292.5 <= deg <= 337.5:
             return 'СЗ'
 
 
@@ -354,7 +402,6 @@ class MainWindow(QMainWindow):
         timer = Timer(3.0, self.change_label_update)
         timer.start()
 
-        print(self.data)
         self.temp = str(round(self.data['main']['temp'])) + '°'
         self.temp_like = str(round(self.data['main']['feels_like'])) + '°'
         self.hum = str(round(self.data['main']['humidity'])) + '%'

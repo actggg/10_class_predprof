@@ -23,7 +23,7 @@
    </size>
   </property>
   <property name="windowTitle">
-   <string>Dialog</string>
+   <string>Удаление аккаунта</string>
   </property>
   <property name="styleSheet">
    <string notr="true">QDialog{background-color: darkgray}</string>
@@ -191,7 +191,12 @@ border: none;
          <property name="font">
           <font>
            <family>Tw Cen MT</family>
+           <underline>false</underline>
+           <strikeout>false</strikeout>
           </font>
+         </property>
+         <property name="tabletTracking">
+          <bool>false</bool>
          </property>
          <property name="styleSheet">
           <string notr="true">QLineEdit
@@ -202,6 +207,15 @@ border: none;
          </property>
          <property name="text">
           <string/>
+         </property>
+         <property name="echoMode">
+          <enum>QLineEdit::PasswordEchoOnEdit</enum>
+         </property>
+         <property name="readOnly">
+          <bool>false</bool>
+         </property>
+         <property name="clearButtonEnabled">
+          <bool>false</bool>
          </property>
         </widget>
        </item>

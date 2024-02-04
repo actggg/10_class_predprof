@@ -17,7 +17,7 @@
    <bool>false</bool>
   </property>
   <property name="windowTitle">
-   <string>Погода</string>
+   <string>Вход</string>
   </property>
   <property name="windowOpacity">
    <double>1.000000000000000</double>
@@ -290,7 +290,7 @@ border-radius: 10px;
            <property name="geometry">
             <rect>
              <x>90</x>
-             <y>260</y>
+             <y>270</y>
              <width>351</width>
              <height>23</height>
             </rect>
@@ -431,11 +431,16 @@ border: none;
                <string notr="true">QLineEdit
 {
 background-color: rgba(255, 255, 254, 100);
-border: none;
-}</string>
+border: none;}</string>
               </property>
               <property name="text">
                <string/>
+              </property>
+              <property name="echoMode">
+               <enum>QLineEdit::PasswordEchoOnEdit</enum>
+              </property>
+              <property name="dragEnabled">
+               <bool>false</bool>
               </property>
              </widget>
             </item>
