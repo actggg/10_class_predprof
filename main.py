@@ -252,7 +252,6 @@ class MainWindow(QMainWindow):
         uic.loadUi('Главный экран(Погода).ui', self)
         self.setBaseSize(760, 500)
         self.account = account
-        self.IP = self.account[0]
         self.file_path = '/'
         self.trend = 0
         self.count = 0
@@ -563,9 +562,9 @@ class MainWindow(QMainWindow):
 
         if self.loc:
             if self.loc['address']:
-                self.label_geo.setText(str('Текущая локация:\n' + self.loc['address']['city'] + '\n' + self.loc['address']['suburb'] + '\n' + self.loc['address']['road']))
+                self.label_geo.setText(str('Текущая локация:\n' + self.loc['address']['city'] + ', ' + self.loc['address']['suburb'] + '\n' + self.loc['address']['road']))
             else:
-                self.label_geo.setText(str('Текущая локация:\n' + self.loc[2] + ', \n' + self.loc[3] + ', \n' + self.loc[1]))
+                self.label_geo.setText(str('Текущая локация:\n' + self.loc[2] + ', \n' + self.loc[3]))
         else:
             self.label_geo.setText(str('Текущая локация:\n---\n---'))
 
