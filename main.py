@@ -17,7 +17,8 @@ import hashlib
 from threading import Timer
 
 from PyQt5 import uic
-from PyQt5.QtWidgets import QApplication, QMainWindow, QFileDialog, QDialog, QVBoxLayout, QWidget
+from PyQt5.QtWidgets import QApplication, QMainWindow, QFileDialog, QDialog, QVBoxLayout, QWidget, QLabel
+from PyQt5.QtGui import QFont
 
 from translatepy.translators.yandex import YandexTranslate
 
@@ -28,6 +29,12 @@ import asyncio
 import winsdk.windows.devices.geolocation as wdg
 
 from statsmodels.tsa.seasonal import seasonal_decompose
+
+def mid(x):
+    return x.sum() / len(x)
+
+def disp(x):
+    return mid(x**2) - (mid(x))**2
 
 async def getCoords():
     locator = wdg.Geolocator()
@@ -399,10 +406,13 @@ class MainWindow(QMainWindow):
             self.review_del.clear()
             self.opened_reviews.append('id:' + str(len(self.opened_reviews) - 1 + self.count) + ' ' + str(self.review_files.currentText() + ' ' + self.review_col.currentText()) + ' - (Удалить)')
             self.review_del.addItems(self.opened_reviews)
+
+            self.stats_text = 'Среднее: ' + str(round(mid(table))) + ' Медиана: ' + str(table.median()) + ' Стандартное отклонение: ' + str(disp(table))
+
             if self.trend:
                 self.draw_plot_review(table.index, list_table, decompose.index, list_decompose)
             else:
-                self.draw_plot_review(table.index, list_table, 1, 1)
+                self.draw_plot_review(table.index, list_table, 0, 0)
 
         except Exception as e:
             print(e)
@@ -445,7 +455,12 @@ class MainWindow(QMainWindow):
 
         layout = QVBoxLayout()
         toolbar = NavigationToolbar(sc, self)
+        infobar = QLabel()
+        infobar.setText(self.stats_text)
+        infobar.setFont(QFont('MS Shell Dlg 2', 12))
+        infobar.setFixedSize(1000, 35)
 
+        layout.addWidget(infobar)
         layout.addWidget(toolbar)
         layout.addWidget(sc)
 
