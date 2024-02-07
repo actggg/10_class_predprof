@@ -1,61 +1,72 @@
 import sqlite3
 import datetime
-import sys
-import random
 import os
-import csv
+import random
 import pandas as pd
 
 import sys
 import matplotlib
-import matplotlib.pyplot as plt
-matplotlib.use('Qt5Agg')
 
-from PyQt5 import QtCore, QtGui, QtWidgets
+matplotlib.use('Qt5Agg')
 
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg, NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
 
 import hashlib
 
-
 from threading import Timer
 
 from PyQt5 import uic
-from PyQt5.QtWidgets import QApplication, QMainWindow, QFileDialog, QDialog
-
-import pyqtgraph as pg
-
-from geopy.geocoders import Nominatim
-
-import request
+from PyQt5.QtWidgets import QApplication, QMainWindow, QFileDialog, QDialog, QVBoxLayout, QWidget
 
 from translatepy.translators.yandex import YandexTranslate
 
 translator = YandexTranslate()
 
-import http.client
+import requests
+import asyncio
+import winsdk.windows.devices.geolocation as wdg
 
-def valid_ip(IP):
-    ip_split = list(map(int, str(IP).split('.')))
-    n = len(ip_split)
-    if not n == 4:
+from statsmodels.tsa.seasonal import seasonal_decompose
+
+async def getCoords():
+    locator = wdg.Geolocator()
+    pos = await locator.get_geoposition_async()
+    return pos.coordinate.latitude, pos.coordinate.longitude
+
+def getloc():
+    try:
+        return asyncio.run(getCoords())
+    except PermissionError:
         return 0
-    else:
-        for i in range(4):
-            if not 0 <= ip_split[i] <= 255:
-                return 0
-    return 1
+
+
+def weather_request(lat, lon):
+    with open('API_KEY_WEATHER.txt') as f:
+        key = f.readline()
+    url = 'https://api.openweathermap.org/data/2.5/weather'
+    getparams = {
+        'lat': lat,
+        'lon': lon,
+        'appid': key,
+        'units': 'metric'
+    }
+    response = requests.get(url=url, params=getparams)
+    data = response.json()
+    return data
 
 def getplace(lat, lon):
-    geolocator = Nominatim(user_agent=str(random.randint(10000, 10000000000)))
-    location = geolocator.reverse(lat + "," + lon)
-    if not location:
+    url = 'https://nominatim.openstreetmap.org/reverse?lat={}&lon={}&format=json&addressdetails=1'.format(str(lat) + '0' * random.randint(1, 20), str(lon) + '0' * random.randint(1, 20))
+    response = requests.get(url=url)
+    data = response.json()
+    if not data:
         return 0
-    return location
+    return data
+
 
 def translate(word):
     return translator.translate(word, 'ru')
+
 
 class MainWidget(QMainWindow):
     def __init__(self):
@@ -65,7 +76,6 @@ class MainWidget(QMainWindow):
         self.setBaseSize(760, 500)
         self.going.clicked.connect(self.allowance)
         self.registrationbutton.clicked.connect(self.register)
-
 
     def allowance(self):
         introduced_password = self.input_password.text()
@@ -83,10 +93,11 @@ class MainWidget(QMainWindow):
             return
         new_key = hashlib.pbkdf2_hmac('sha256', introduced_password.encode('utf-8'), salt, 100000)
         if key == new_key:
-            result = cur.execute(f""" Select IP, login, key, salt from Acc where Acc.login = '{introduced_login}'""").fetchall()
+            result = cur.execute(
+                f""" Select login, key, salt from Acc where Acc.login = '{introduced_login}'""").fetchall()
             for elem in result:
                 try:
-                    self.open_menu = MainWindow([elem[0], elem[1], elem[2], elem[3]])
+                    self.open_menu = MainWindow([elem[0], elem[1], elem[2]])
                     self.open_menu.show()
                     self.hide()
                 except Exception as e:
@@ -96,7 +107,6 @@ class MainWidget(QMainWindow):
             con.close()
             return
         con.close()
-
 
     def register(self):
         self.registration = Registration()
@@ -147,25 +157,19 @@ class Registration(QMainWindow):
         }
         login_acc = self.login.text()
         password_acc = self.password.text()
-        conn = http.client.HTTPConnection("ifconfig.me")
-        conn.request("GET", "/ip")
-        ip = str(conn.getresponse().read())[2:-1]
         salt = os.urandom(32)
         key = hashlib.pbkdf2_hmac('sha256', password_acc.encode('utf-8'), salt, 100000)
         try:
             if login_acc != '' and password_acc != '' and self.password_2.text() != '':
                 if self.password.text() == self.password_2.text():
                     if self.password_verification(password_acc) == 0:
-                        if valid_ip(ip):
-                            con = sqlite3.connect("аккаунты.db")
-                            cursor = con.cursor()
-                            cursor.execute("INSERT INTO Acc(login, key, salt, IP) VALUES(?, ?, ?, ?)", (login_acc, key, salt, ip))
-                            con.commit()
-                            cursor.close()
-                            con.close()
-                            self.back_to_login()
-                        else:
-                            self.error_message.setText('Некорректный IP-адрес')
+                        con = sqlite3.connect("аккаунты.db")
+                        cursor = con.cursor()
+                        cursor.execute("INSERT INTO Acc(login, key, salt) VALUES(?, ?, ?)",(login_acc, key, salt))
+                        con.commit()
+                        cursor.close()
+                        con.close()
+                        self.back_to_login()
                     else:
                         self.error_message.setText(password_errors[self.password_verification(password_acc)])
                 else:
@@ -175,15 +179,26 @@ class Registration(QMainWindow):
         except Exception as e:
             print(e)
 
-class MplCanvas(FigureCanvasQTAgg):
+
+class MplCanvasForecast(FigureCanvasQTAgg):
     def __init__(self, parent=None, width=5, height=4, dpi=100):
         fig = Figure(figsize=(width, height), dpi=dpi)
         self.axes_temp = fig.add_subplot(211)
         self.axes_wind = fig.add_subplot(212)
-        fig.subplots_adjust(top = 0.921, bottom = 0.139,
-                            left = 0.069, right = 0.983,
-                            hspace = 0.624, wspace = 0.2)
-        super(MplCanvas, self).__init__(fig)
+        fig.subplots_adjust(top=0.917, bottom=0.145,
+                            left=0.037, right=0.983,
+                            hspace=0.673, wspace=0.2)
+        super(MplCanvasForecast, self).__init__(fig)
+
+class MplCanvasReview(FigureCanvasQTAgg):
+    def __init__(self, parent=None, width=5, height=4, dpi=100):
+        fig = Figure(figsize=(width, height), dpi=dpi)
+        self.axes_1 = fig.add_subplot(111)
+        fig.subplots_adjust(top=0.921, bottom=0.139,
+                            left=0.069, right=0.983,
+                            hspace=0.624, wspace=0.2)
+        super(MplCanvasReview, self).__init__(fig)
+
 
 class Delete_Acc(QDialog):
     def __init__(self, account):
@@ -223,6 +238,7 @@ class Delete_Acc(QDialog):
         self.open_menu.show()
         self.hide()
 
+
 class MainWindow(QMainWindow):
     def __init__(self, account):
         super().__init__()
@@ -230,7 +246,9 @@ class MainWindow(QMainWindow):
         self.setBaseSize(760, 500)
         self.account = account
         self.IP = self.account[0]
-        self.pathfile = 0
+        self.file_path = '/'
+        self.trend = 0
+        self.count = 0
         self.browse.clicked.connect(self.browsefiles)
         self.delete_acc.clicked.connect(self.acc_del)
         self.logout_button.clicked.connect(self.logout)
@@ -239,7 +257,19 @@ class MainWindow(QMainWindow):
         self.CSV_type.toggled.connect(self.CSV)
         self.XLSX_type.toggled.connect(self.XLSX)
         self.make_forecast.clicked.connect(self.do_forecast)
+        self.make_review.clicked.connect(self.do_review)
 
+        self.opened_files = ['Открытые файлы:']
+        self.opened_files_review = ['---']
+        self.opened_files_data = {}
+        self.opened_reviews = ['Удаление:']
+        self.view_files.addItems(self.opened_files)
+        self.review_files.addItems(self.opened_files_review)
+        self.review_del.addItems(self.opened_reviews)
+
+        self.view_files.textActivated.connect(self.rem_file)
+        self.review_files.textActivated.connect(self.activate_file)
+        self.review_del.textActivated.connect(self.rem_review)
 
         try:
             self.get_weather()
@@ -247,32 +277,136 @@ class MainWindow(QMainWindow):
             print(e)
 
         self.update_weather.clicked.connect(self.get_weather)
-        self.update_geo.clicked.connect(self.get_weather_update_geo)
+        self.trend_show.stateChanged.connect(self.trend_changed)
+
+    def trend_changed(self):
+        self.trend = self.trend_show.checkState()
+
+    def activate_file(self):
+        if self.review_files.currentText() != '---':
+            self.review_col.clear()
+            self.review_date.clear()
+
+            file = self.review_files.currentText()
+            self.review_col.addItems(self.opened_files_data[file]['cols'])
+            self.review_date.addItems(self.opened_files_data[file]['cols'])
+
+    def rem_review(self):
+        if self.review_del.currentText() != 'Удаление:':
+            self.opened_reviews.remove(self.review_del.currentText())
+            self.vis_tabs.removeTab(self.review_del.currentIndex())
+            self.count += 1
+
+        self.review_del.clear()
+        self.review_del.addItems(self.opened_reviews)
+        self.review_del.setCurrentIndex(0)
+
+
+    def rem_file(self):
+        self.review_col.clear()
+        self.review_date.clear()
+        if self.view_files.currentText() in self.opened_files and self.view_files.currentText() != 'Открытые файлы:':
+            self.opened_files.remove(self.view_files.currentText())
+            self.opened_files_data.pop(self.view_files.currentText()[:-12])
+            self.opened_files_review = ['---']
+            for i in range(1, len(self.opened_files), 1):
+                self.opened_files_review.append(self.opened_files[i][:-12])
+
+        self.view_files.clear()
+        self.view_files.addItems(self.opened_files)
+        self.view_files.setCurrentIndex(0)
+
+        self.review_files.clear()
+        self.review_files.addItems(self.opened_files_review)
+        self.review_files.setCurrentIndex(0)
+
+    def add_file(self):
+        try:
+            added_file = str(self.file_path.split('/')[-1])
+            if added_file and not (added_file + ' - (Удалить)') in self.opened_files:
+                self.opened_files_review.append(added_file)
+                self.opened_files.append(added_file + ' - (Удалить)')
+                if added_file[-3::].upper() == 'CSV':
+                    self.opened_files_data[added_file] = {
+                        'path': self.file_path,
+                        'cols': list(pd.read_csv(self.file_path).columns)
+                    }
+                elif added_file[-4::].upper() == 'XLSX':
+                    self.opened_files_data[added_file] = {
+                        'path': self.file_path,
+                        'cols': list(pd.read_excel(self.file_path).columns)
+                    }
+
+            self.view_files.clear()
+            self.view_files.addItems(self.opened_files)
+
+            self.review_files.clear()
+            self.review_files.addItems(self.opened_files_review)
+        except Exception as e:
+            print(e)
 
     def do_forecast(self):
         try:
             for i in reversed(range(self.vis.count())):
                 self.vis.itemAt(i).widget().deleteLater()
-            self.date_begin = self.forecast_begin.dateTime().toPyDateTime().date()
-            self.date_finish = self.forecast_finish.dateTime().toPyDateTime().date()
+            date_begin = self.forecast_begin.dateTime().toPyDateTime().date()
+            date_finish = self.forecast_finish.dateTime().toPyDateTime().date()
 
             df = pd.read_csv('Forecast.csv')
             df.set_index('date', inplace=True)
 
-            table_temp = df['temperature'][(str(self.date_begin) + '-00'):(str(self.date_finish) + '-00')]
+            table_temp = df['temperature'][(str(date_begin) + '-00'):(str(date_finish) + '-00')]
             list_table_temp = table_temp.tolist()
             table_temp = table_temp.astype(float)
             table_temp.index = pd.to_datetime(table_temp.index, format='%Y-%m-%d-%H')
 
-            table_wind = df['wind'][(str(self.date_begin) + '-00'):(str(self.date_finish) + '-00')]
+            table_wind = df['wind'][(str(date_begin) + '-00'):(str(date_finish) + '-00')]
             list_table_wind = table_wind.tolist()
             table_wind = table_temp.astype(float)
             table_wind.index = pd.to_datetime(table_wind.index, format='%Y-%m-%d-%H')
 
-            self.draw_plot([table_temp.index, table_wind.index], [list_table_temp, list_table_wind], ['axes_temp', 'axes_wind'])
+            self.draw_plot_forecast([table_temp.index, table_wind.index], [list_table_temp, list_table_wind],
+                                    ['axes_temp', 'axes_wind'])
 
         except Exception as e:
             print(e)
+
+    def do_review(self):
+        try:
+            file = self.review_files.currentText()
+            file_path = self.opened_files_data[file]['path']
+            if file[-3::].upper() == 'CSV':
+                df = pd.read_csv(file_path)
+            elif file[-4::].upper() == 'XLSX':
+                df = pd.read_excel(file_path)
+            else:
+                return
+            col = self.review_col.currentText()
+            date_begin = self.review_begin.dateTime().toPyDateTime().date()
+            date_finish = self.review_finish.dateTime().toPyDateTime().date()
+
+            df.set_index(str(self.review_date.currentText()), inplace=True)
+
+            table = df[col][(str(date_begin) + '-00'):(str(date_finish) + '-00')]
+            list_table = table.tolist()
+            table = table.astype(float)
+            table.index = pd.to_datetime(table.index, format='%Y-%m-%d-%H')
+            if self.trend:
+                decompose = seasonal_decompose(table).trend
+                decompose.plot(color='orange')
+                list_decompose = decompose.tolist()
+
+            self.review_del.clear()
+            self.opened_reviews.append('id:' + str(len(self.opened_reviews) - 1 + self.count) + ' ' + str(self.review_files.currentText() + ' ' + self.review_col.currentText()) + ' - (Удалить)')
+            self.review_del.addItems(self.opened_reviews)
+            if self.trend:
+                self.draw_plot_review(table.index, list_table, decompose.index, list_decompose)
+            else:
+                self.draw_plot_review(table.index, list_table, 1, 1)
+
+        except Exception as e:
+            print(e)
+
     def XLSX(self):
         self.filetype = 'XLSX'
 
@@ -289,49 +423,46 @@ class MainWindow(QMainWindow):
         self.go_home = MainWidget()
         self.go_home.show()
         self.hide()
+
     def exit_fnc(self):
         sys.exit(app.exec_())
 
     def browsefiles(self):
         fname = QFileDialog.getOpenFileName(self, 'Open file', '/', 'Data(*.{})'.format(self.filetype.lower()))
-        file = fname[0].split('/')[-1]
-        self.pathfile = fname[0]
-        self.filename.setText(file)
-        self.update_plot()
+        self.file_path = fname[0]
+        self.add_file()
 
-    def update_plot(self):
-        try:
-            if self.filetype == 'CSV':
-                df = pd.read_csv(self.pathfile)
-            elif self.filetype == 'XLSX':
-                df = pd.read_excel(self.pathfile)
-            else:
-                return
-            dictionary = {
-                'температура': 'temperature',
-                'ветер': 'wind',
-                'давление': 'pressure',
-                'влажность': 'humidity'
-            }
-            df.set_index('date', inplace=True)
-            table = df[dictionary['температура']][str(self.date_begin):str(self.date_finish)]
-            list_table = table.tolist()
-            table = table.astype(float)
-            table.index = pd.to_datetime(table.index)
-            self.draw_plot(table.index, list_table)
-        except Exception as e:
-            print(e)
+    def draw_plot_review(self, date_index, data, dec_index, dec_data):
+        sc = MplCanvasReview(self, width=20, height=1, dpi=100)
+        sc.axes_1.plot(date_index, data, marker="o")
+        if self.trend:
+            sc.axes_1.plot(dec_index, dec_data, color='orange')
+        sc.axes_1.set_ylim((min(data) - 1, max(data) + 1))
+        sc.axes_1.set_xticks(sc.axes_1.get_xticks(), sc.axes_1.get_xticklabels(), rotation=20, ha="right")
+        sc.axes_1.set_title('Анализ - ' + str(self.review_col.currentText()))
+        for j in range(0, len(date_index), round(len(date_index) / 35) + 1):
+            sc.axes_1.annotate(round(data[j], 1), (date_index[j], data[j] + 0.4))
+
+        layout = QVBoxLayout()
+        toolbar = NavigationToolbar(sc, self)
+
+        layout.addWidget(toolbar)
+        layout.addWidget(sc)
+
+        tab = QWidget()
+        tab.setLayout(layout)
+        self.vis_tabs.addTab(tab, 'id:' + str(len(self.opened_reviews) - 2 + self.count) + ' ' + str(self.review_files.currentText() + ' ' + self.review_col.currentText()))
 
 
-    def draw_plot(self, date_index, data, axes):
-        sc = MplCanvas(self, width=20, height=1, dpi=100)
+    def draw_plot_forecast(self, date_index, data, axes):
+        sc = MplCanvasForecast(self, width=20, height=1, dpi=100)
         n = len(axes)
         for i in range(n):
             exec('sc.{}.plot(date_index[i], data[i], marker="o")'.format(axes[i]))
-            exec('sc.{}.set_ylim((min(data[i]) - 1, max(data[i]) + 3))'.format(axes[i]))
+            exec('sc.{}.set_ylim((min(data[i]) - 1, max(data[i]) + 1))'.format(axes[i]))
             exec('sc.{}.set_xticks(sc.{}.get_xticks(), sc.{}.get_xticklabels(), rotation=20, ha="right")'.format(axes[i], axes[i], axes[i]))
             exec('sc.{}.set_title("{}")'.format(axes[i], axes[i][5::]))
-            for j in range(len(date_index[i])):
+            for j in range(0, len(date_index[0]), round(len(date_index[0]) / 35) + 1):
                 exec('sc.{}.annotate(round(data[i][j], 1), (date_index[i][j], data[i][j] + 0.4))'.format(axes[i]))
 
         toolbar = NavigationToolbar(sc, self)
@@ -353,26 +484,26 @@ class MainWindow(QMainWindow):
         Fog = dict.fromkeys(['Mist', 'Fog', 'Smoke', 'Haze'], 'fog.jpg')
         Dust = dict.fromkeys(['Dust', 'Sand'], 'dust.jpg')
         weather_image = dict(list(weather_image.items()) + list(Fog.items()) + list(Dust.items()))
-        StyleSheet = 'QStackedWidget{background-image: url(./weather-photos/background/'+weather_image[weather]+'); background-repeat: no-repeat; background-position: center; border-radius: 10%;}'
+        StyleSheet = 'QStackedWidget{background-image: url(./weather-photos/background/' + weather_image[
+            weather] + '); background-repeat: no-repeat; background-position: center; border-radius: 10%;}'
         self.background_1.setStyleSheet(StyleSheet)
         self.background_2.setStyleSheet(StyleSheet)
         self.background_3.setStyleSheet(StyleSheet)
         self.background_4.setStyleSheet(StyleSheet)
-        self.weather_label.setText(str(translate(weather)).replace('Четкий', 'Ясно').replace('Облака', 'Облачно').replace('Моросить', 'Морось'))
-
+        self.background_5.setStyleSheet(StyleSheet)
+        self.weather_label.setText(
+            str(translate(weather)).replace('Четкий', 'Ясно').replace('Облака', 'Облачно').replace('Моросить',
+                                                                                                   'Морось'))
 
     def get_weather(self):
-        self.data = request.weather_request(0, self.IP)
-        self.draw_weather()
-
-
-    def get_weather_update_geo(self):
-        self.data = request.weather_request(1, self.IP)
+        self.lat, self.lon = getloc()
+        self.data = weather_request(self.lat, self.lon)
         self.draw_weather()
 
     def date_format(self):
         now = datetime.datetime.now()
-        date = '{:02d}:{:02d}:{:02d} {:02d}.{:02d}.{:04d}'.format(now.hour, now.minute, now.second, now.day, now.month, now.year)
+        date = '{:02d}:{:02d}:{:02d} {:02d}.{:02d}.{:04d}'.format(now.hour, now.minute, now.second, now.day, now.month,
+                                                                  now.year)
         return date
 
     def wind_dir_get(self, deg):
@@ -393,7 +524,6 @@ class MainWindow(QMainWindow):
         elif 292.5 <= deg <= 337.5:
             return 'СЗ'
 
-
     def change_label_update(self):
         self.label_update.setText('Данные актуальны на \n' + self.date_format())
 
@@ -413,16 +543,14 @@ class MainWindow(QMainWindow):
 
         self.set_background(self.weather)
 
-        with open('Saved_coords.txt') as f:
-            self.lat, self.lon = f.read().split()
+        self.lat, self.lon = getloc()
+        self.loc = getplace(self.lat, self.lon)
 
-        self.place = getplace(self.lat, self.lon)
-        if self.place != 0:
-            self.loc = str(getplace(self.lat, self.lon)[0]).split(', ')
-            if len(self.loc) <= 4:
-                self.label_geo.setText(str('Текущая локация:\n' + self.loc[0] + ', \n' + self.loc[1]))
+        if self.loc:
+            if self.loc['address']:
+                self.label_geo.setText(str('Текущая локация:\n' + self.loc['address']['city'] + '\n' + self.loc['address']['suburb'] + '\n' + self.loc['address']['road']))
             else:
-                self.label_geo.setText(str('Текущая локация:\n' + self.loc[3] + ', \n' + self.loc[2]))
+                self.label_geo.setText(str('Текущая локация:\n' + self.loc[2] + ', \n' + self.loc[3] + ', \n' + self.loc[1]))
         else:
             self.label_geo.setText(str('Текущая локация:\n---\n---'))
 
@@ -435,8 +563,6 @@ class MainWindow(QMainWindow):
         self.pressure.setText(self.press)
 
 
-
-
 if __name__ == '__main__':
     try:
         app = QApplication(sys.argv)
@@ -445,4 +571,3 @@ if __name__ == '__main__':
         sys.exit(app.exec_())
     except Exception as e:
         print(e)
-
