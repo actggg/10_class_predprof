@@ -409,13 +409,11 @@ class MainWindow(QMainWindow):
             list_table_temp = table_temp.tolist()
             table_temp = table_temp.astype(float)
             table_temp_index = list(map(datetime.datetime.fromisoformat, table_temp.index.tolist()))
-            table_temp.set_index(pd.Series(table_temp_index))
 
             table_wind = df['wind'][(str(date_begin)):(str(date_finish))]
             list_table_wind = table_wind.tolist()
             table_wind = table_temp.astype(float)
             table_wind_index = list(map(datetime.datetime.fromisoformat, table_wind.index.tolist()))
-            table_wind.set_index(pd.Series(table_wind_index))
 
             self.draw_plot_forecast([table_temp_index, table_wind_index], [list_table_temp, list_table_wind],
                                     ['axes_temp', 'axes_wind'])
@@ -456,7 +454,7 @@ class MainWindow(QMainWindow):
                     decompose = seasonal_decompose(table).trend
                     list_decompose = decompose.tolist()
 
-                self.stats_text = 'Среднее: ' + str(round(mid(table))) + ' Медиана: ' + str(table.median()) + ' Стандартное отклонение: ' + str(disp(table))
+                self.stats_text = 'Среднее: ' + str(round(mid(table), 3)) + ' Медиана: ' + str(round(table.median(), 3)) + ' Стандартное отклонение: ' + str(round(disp(table), 3))
 
                 if self.trend:
                     self.draw_plot_review(index, list_table, decompose.index, list_decompose)
