@@ -4,6 +4,8 @@ import os
 import random
 import pandas as pd
 
+import openpyxl
+
 import sys
 import matplotlib
 
@@ -74,6 +76,12 @@ def getplace(lat, lon):
 def translate(word):
     return translator.translate(word, 'ru')
 
+class ErrorWindow(QDialog):
+    def __init__(self, error):
+        super().__init__()
+        uic.loadUi('Ошибка.ui', self)
+        x = list(error.split())
+        self.error_text.setText(str(' '.join(x[:len(x) // 3:])) + '\n' + str(' '.join(x[len(x) // 3:2 * len(x) // 3:])) + '\n' + str(' '.join(x[2 * len(x) // 3::])))
 
 class MainWidget(QMainWindow):
     def __init__(self):
@@ -108,7 +116,9 @@ class MainWidget(QMainWindow):
                     self.open_menu.show()
                     self.hide()
                 except Exception as e:
-                    print(e)
+                    self.err = ErrorWindow(str(e))
+                    self.err.show()
+
         else:
             self.mistakes.show()
             con.close()
@@ -172,11 +182,19 @@ class Registration(QMainWindow):
                     if self.password_verification(password_acc) == 0:
                         con = sqlite3.connect("аккаунты.db")
                         cursor = con.cursor()
-                        cursor.execute("INSERT INTO Acc(login, key, salt) VALUES(?, ?, ?)",(login_acc, key, salt))
-                        con.commit()
-                        cursor.close()
+                        try:
+                            cursor.execute("INSERT INTO Acc(login, key, salt) VALUES(?, ?, ?)",(login_acc, key, salt))
+                            con.commit()
+                            cursor.close()
+                            con.close()
+                            self.back_to_login()
+                        except Exception as e:
+                            if str(e) != 'UNIQUE constraint failed: Acc.login':
+                                self.err = ErrorWindow(str(e))
+                                self.err.show()
+                            else:
+                                self.error_message.setText('Логин уже существует')
                         con.close()
-                        self.back_to_login()
                     else:
                         self.error_message.setText(password_errors[self.password_verification(password_acc)])
                 else:
@@ -184,7 +202,8 @@ class Registration(QMainWindow):
             else:
                 self.error_message.setText('Не все поля заполнены')
         except Exception as e:
-            print(e)
+            self.err = ErrorWindow(str(e))
+            self.err.show()
 
 
 class MplCanvasForecast(FigureCanvasQTAgg):
@@ -193,7 +212,7 @@ class MplCanvasForecast(FigureCanvasQTAgg):
         self.axes_temp = fig.add_subplot(211)
         self.axes_wind = fig.add_subplot(212)
         fig.subplots_adjust(top=0.917, bottom=0.145,
-                            left=0.037, right=0.983,
+                            left=0.063, right=0.983,
                             hspace=0.673, wspace=0.2)
         super(MplCanvasForecast, self).__init__(fig)
 
@@ -280,7 +299,8 @@ class MainWindow(QMainWindow):
         try:
             self.get_weather()
         except Exception as e:
-            print(e)
+            self.err = ErrorWindow(str(e))
+            self.err.show()
 
         self.update_weather.clicked.connect(self.get_weather)
         self.trend_show.stateChanged.connect(self.trend_changed)
@@ -349,7 +369,9 @@ class MainWindow(QMainWindow):
             self.review_files.clear()
             self.review_files.addItems(self.opened_files_review)
         except Exception as e:
-            print(e)
+            self.err = ErrorWindow(str(e))
+            self.err.show()
+
 
     def do_forecast(self):
         try:
@@ -361,21 +383,24 @@ class MainWindow(QMainWindow):
             df = pd.read_csv('Forecast.csv')
             df.set_index('date', inplace=True)
 
-            table_temp = df['temperature'][(str(date_begin) + '-00'):(str(date_finish) + '-00')]
+            table_temp = df['temperature'][(str(date_begin)):(str(date_finish))]
             list_table_temp = table_temp.tolist()
             table_temp = table_temp.astype(float)
-            table_temp.index = pd.to_datetime(table_temp.index, format='%Y-%m-%d-%H')
+            table_temp_index = list(map(datetime.datetime.fromisoformat, table_temp.index.tolist()))
 
-            table_wind = df['wind'][(str(date_begin) + '-00'):(str(date_finish) + '-00')]
+            table_wind = df['wind'][(str(date_begin)):(str(date_finish))]
             list_table_wind = table_wind.tolist()
             table_wind = table_temp.astype(float)
-            table_wind.index = pd.to_datetime(table_wind.index, format='%Y-%m-%d-%H')
+            table_wind_index = list(map(datetime.datetime.fromisoformat, table_wind.index.tolist()))
 
-            self.draw_plot_forecast([table_temp.index, table_wind.index], [list_table_temp, list_table_wind],
+            self.draw_plot_forecast([table_temp_index, table_wind_index], [list_table_temp, list_table_wind],
                                     ['axes_temp', 'axes_wind'])
 
         except Exception as e:
-            print(e)
+            self.err = ErrorWindow(str(e))
+            self.err.show()
+
+
 
     def do_review(self):
         try:
@@ -393,10 +418,13 @@ class MainWindow(QMainWindow):
 
             df.set_index(str(self.review_date.currentText()), inplace=True)
 
-            table = df[col][(str(date_begin) + '-00'):(str(date_finish) + '-00')]
+            table = df[col][(str(date_begin)):(str(date_finish))]
+
             list_table = table.tolist()
             table = table.astype(float)
-            table.index = pd.to_datetime(table.index, format='%Y-%m-%d-%H')
+
+            dates_str = list(map(str, table.index.tolist()))
+            index = list(map(datetime.datetime.fromisoformat, dates_str))
             if self.trend:
                 decompose = seasonal_decompose(table).trend
                 decompose.plot(color='orange')
@@ -409,12 +437,14 @@ class MainWindow(QMainWindow):
             self.stats_text = 'Среднее: ' + str(round(mid(table))) + ' Медиана: ' + str(table.median()) + ' Стандартное отклонение: ' + str(disp(table))
 
             if self.trend:
-                self.draw_plot_review(table.index, list_table, decompose.index, list_decompose)
+                self.draw_plot_review(index, list_table, decompose.index, list_decompose)
             else:
-                self.draw_plot_review(table.index, list_table, 0, 0)
+                self.draw_plot_review(index, list_table, 0, 0)
 
         except Exception as e:
-            print(e)
+            self.err = ErrorWindow(str(e))
+            self.err.show()
+
 
     def XLSX(self):
         self.filetype = 'XLSX'
