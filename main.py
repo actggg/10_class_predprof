@@ -265,7 +265,7 @@ class Delete_Acc(QDialog):
         if key != new_key:
             self.mistakes.show()
         else:
-            if self.account[1] != introduced_login:
+            if self.account[0] != introduced_login:
                 self.mistakes.show()
             else:
                 cur.execute(f""" Delete from Acc where Acc.login = '{introduced_login}'""").fetchall()
@@ -623,7 +623,6 @@ class MainWindow(QMainWindow):
 
         self.set_background(self.weather)
 
-        self.lat, self.lon = getloc()
         self.loc = getplace(self.lat, self.lon)
 
         if self.loc:
