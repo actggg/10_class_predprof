@@ -1,33 +1,33 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>Error</class>
- <widget class="QDialog" name="Error">
+ <class>Dialog</class>
+ <widget class="QDialog" name="Dialog">
   <property name="geometry">
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>700</width>
-    <height>160</height>
+    <width>500</width>
+    <height>200</height>
    </rect>
   </property>
   <property name="minimumSize">
    <size>
-    <width>700</width>
-    <height>160</height>
+    <width>500</width>
+    <height>200</height>
    </size>
   </property>
   <property name="maximumSize">
    <size>
-    <width>700</width>
-    <height>160</height>
+    <width>500</width>
+    <height>200</height>
    </size>
   </property>
   <property name="windowTitle">
-   <string>Error</string>
+   <string>Уведомление</string>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
    <item>
-    <widget class="QLabel" name="label">
+    <widget class="QLabel" name="label_2">
      <property name="maximumSize">
       <size>
        <width>16777215</width>
@@ -42,7 +42,7 @@
       </font>
      </property>
      <property name="text">
-      <string>Ошибка:</string>
+      <string>Уведомление</string>
      </property>
      <property name="alignment">
       <set>Qt::AlignCenter</set>
@@ -50,9 +50,18 @@
     </widget>
    </item>
    <item>
-    <widget class="QLabel" name="error_text">
+    <widget class="QLabel" name="weather_text">
+     <property name="font">
+      <font>
+       <pointsize>12</pointsize>
+      </font>
+     </property>
      <property name="text">
-      <string/>
+      <string>Погодные условия изменились
+
+Предыдущие погодные условия:
+
+Текущие погодные условия:</string>
      </property>
      <property name="alignment">
       <set>Qt::AlignCenter</set>
