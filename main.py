@@ -19,7 +19,7 @@ import hashlib
 from threading import Timer
 
 from PyQt5 import uic
-from PyQt5.QtWidgets import QApplication, QMainWindow, QFileDialog, QDialog, QVBoxLayout, QWidget, QLabel
+from PyQt5.QtWidgets import QApplication, QMainWindow, QFileDialog, QDialog, QVBoxLayout, QWidget, QLabel, QPushButton
 from PyQt5.QtGui import QFont
 
 from translatepy.translators.yandex import YandexTranslate
@@ -308,6 +308,7 @@ class MainWindow(QMainWindow):
         self.opened_files_review = ['---']
         self.opened_files_data = {}
         self.opened_reviews = ['Удаление:']
+        self.opened_reviews_data = ['0']
         self.view_files.addItems(self.opened_files)
         self.review_files.addItems(self.opened_files_review)
         self.review_del.addItems(self.opened_reviews)
@@ -315,6 +316,8 @@ class MainWindow(QMainWindow):
         self.view_files.textActivated.connect(self.rem_file)
         self.review_files.textActivated.connect(self.activate_file)
         self.review_del.textActivated.connect(self.rem_review)
+
+        self.vis_tabs.currentChanged.connect(self.get_tab_idx)
 
         try:
             self.get_weather()
@@ -324,6 +327,10 @@ class MainWindow(QMainWindow):
 
         self.update_weather.clicked.connect(self.get_weather)
         self.trend_show.stateChanged.connect(self.trend_changed)
+
+    def get_tab_idx(self, index):
+        self.cur_tab = self.vis_tabs.tabText(index)
+        self.tab_idx = int(list(self.cur_tab[3::].split())[0])
 
     def trend_changed(self):
         self.trend = self.trend_show.checkState()
@@ -339,6 +346,7 @@ class MainWindow(QMainWindow):
 
     def rem_review(self):
         if self.review_del.currentText() != 'Удаление:':
+            self.opened_reviews_data.pop(self.review_del.currentIndex())
             self.opened_reviews.remove(self.review_del.currentText())
             self.vis_tabs.removeTab(self.review_del.currentIndex())
             self.count += 1
@@ -439,7 +447,8 @@ class MainWindow(QMainWindow):
                 date_begin = self.review_begin.dateTime().toPyDateTime().date()
                 date_finish = self.review_finish.dateTime().toPyDateTime().date()
 
-                df.set_index(str(self.review_date.currentText()), inplace=True)
+                date_name = str(self.review_date.currentText())
+                df.set_index(date_name, inplace=True)
 
                 table = df[col][(str(date_begin)):(str(date_finish))]
 
@@ -450,9 +459,15 @@ class MainWindow(QMainWindow):
                 index = list(map(datetime.datetime.fromisoformat, dates_str))
 
                 table = pd.Series(list_table, index=index)
+
+                dec_ind = 0
+                dec_list = 0
+
                 if self.trend:
                     decompose = seasonal_decompose(table).trend
                     list_decompose = decompose.tolist()
+                    dec_ind = decompose.index
+                    dec_list = list_decompose
 
                 self.stats_text = 'Среднее: ' + str(round(mid(table), 3)) + ' Медиана: ' + str(round(table.median(), 3)) + ' Стандартное отклонение: ' + str(round(disp(table), 3))
 
@@ -463,6 +478,20 @@ class MainWindow(QMainWindow):
 
                 self.review_del.clear()
                 self.opened_reviews.append('id:' + str(len(self.opened_reviews) - 1 + self.count) + ' ' + str(self.review_files.currentText() + ' ' + self.review_col.currentText()) + ' - (Удалить)')
+                self.opened_reviews_data.append({
+                        'id': len(self.opened_reviews) - 2 + self.count,
+                        'path': file_path,
+                        'col': col,
+                        'stats': {'mean': str(round(mid(table), 3)), 'med': str(round(table.median(), 3)), 'disp': str(round(disp(table), 3))},
+                        'index': {'begin': date_begin,
+                                  'finish': date_finish,
+                                  'name': date_name
+                                 },
+                        'trend': {'active': self.trend,
+                                  'ind': dec_ind,
+                                  'list': dec_list
+                                 },
+                    })
                 self.review_del.addItems(self.opened_reviews)
 
         except Exception as e:
@@ -501,6 +530,65 @@ class MainWindow(QMainWindow):
         self.file_path = fname[0]
         self.add_file()
 
+    def export(self):
+        try:
+            for i in range(1, len(self.opened_reviews_data), 1):
+                if self.tab_idx == self.opened_reviews_data[i]['id']:
+                    list_idx = i
+            file_path = self.opened_reviews_data[list_idx]['path']
+            if file_path[-3::].upper() == 'CSV':
+                df = pd.read_csv(file_path)
+            elif file_path[-4::].upper() == 'XLSX':
+                df = pd.read_excel(file_path)
+            else:
+                return
+
+            col = self.opened_reviews_data[list_idx]['col']
+            date_begin = self.opened_reviews_data[list_idx]['index']['begin']
+            date_finish = self.opened_reviews_data[list_idx]['index']['finish']
+            date_name = self.opened_reviews_data[list_idx]['index']['name']
+
+            df.set_index(date_name, inplace=True)
+
+            table = df[col][(str(date_begin)):(str(date_finish))]
+
+            list_table = table.tolist()
+            table = table.astype(float)
+
+            dates_str = list(map(str, table.index.tolist()))
+            index = list(map(datetime.datetime.fromisoformat, dates_str))
+
+            table = pd.Series(list_table, index=index, name=col)
+
+            if self.opened_reviews_data[list_idx]['trend']['active']:
+                dec_list = self.opened_reviews_data[list_idx]['trend']['list']
+                dec_ind = self.opened_reviews_data[list_idx]['trend']['ind']
+                trend = pd.Series(dec_list, index=dec_ind, name='trend')
+                res = pd.concat([table, trend], axis=1)
+            else:
+                res = table
+            file = file_path.split("/")
+            export_file_path = str('/'.join(file[:-1:]) + '/Weater_Exports/' + file[-1])
+            export_path = str('/'.join(file[:-1:]) + '/Weater_Exports/')
+            os.makedirs(export_path, exist_ok=True)
+
+            if file_path[-3::].upper() == 'CSV':
+                if self.opened_reviews_data[list_idx]['trend']['active']:
+                    res.to_csv(export_file_path)
+                else:
+                    res.to_csv(export_file_path)
+
+            elif file_path[-4::].upper() == 'XLSX':
+                if self.opened_reviews_data[list_idx]['trend']['active']:
+                    res.to_excel(export_file_path)
+                else:
+                    res.to_excel(export_file_path)
+
+        except Exception as e:
+            self.err = ErrorWindow(str(e))
+            self.err.show()
+
+
     def draw_plot_review(self, date_index, data, dec_index, dec_data):
         sc = MplCanvasReview(self, width=20, height=1, dpi=100)
         if self.plot_type == 'plot':
@@ -522,9 +610,16 @@ class MainWindow(QMainWindow):
         infobar.setFont(QFont('MS Shell Dlg 2', 12))
         infobar.setFixedSize(1000, 35)
 
+        export_button = QPushButton()
+        export_button.setText('Экспорт')
+        export_button.setFont(QFont('MS Shell Dlg 2', 12))
+        export_button.setStyleSheet('QPushButton{background-color: rgba(20, 20, 20, 180); border-radius: 5%;color: white}')
+        export_button.clicked.connect(self.export)
+
         layout.addWidget(infobar)
         layout.addWidget(toolbar)
         layout.addWidget(sc)
+        layout.addWidget(export_button)
 
         tab = QWidget()
         tab.setLayout(layout)
