@@ -596,7 +596,7 @@ class MainWindow(QMainWindow):
 
                 res = pd.concat([table_wind, table_temp], axis=1)
 
-                res.to_csv('Forecast_Export')
+                res.to_csv('Forecast_Export.csv')
         except Exception as e:
             self.err = ErrorWindow(str(e))
             self.err.show()
