@@ -290,6 +290,7 @@ class MainWindow(QMainWindow):
         self.file_path = '/'
         self.trend = 0
         self.count = 0
+        self.tab_idx = 0
         self.plot_type = 'plot'
         self.old_weather = ''
         self.browse.clicked.connect(self.browsefiles)
@@ -329,8 +330,11 @@ class MainWindow(QMainWindow):
         self.trend_show.stateChanged.connect(self.trend_changed)
 
     def get_tab_idx(self, index):
-        self.cur_tab = self.vis_tabs.tabText(index)
-        self.tab_idx = int(list(self.cur_tab[3::].split())[0])
+        if index:
+            self.cur_tab = self.vis_tabs.tabText(index)
+            self.tab_idx = int(list(self.cur_tab[3::].split())[0])
+        else:
+            self.tab_idx = 0
 
     def trend_changed(self):
         self.trend = self.trend_show.checkState()
@@ -423,6 +427,13 @@ class MainWindow(QMainWindow):
             table_wind = table_temp.astype(float)
             table_wind_index = list(map(datetime.datetime.fromisoformat, table_wind.index.tolist()))
 
+            self.opened_reviews_data[0] = {
+                'path': 'Forecast.csv',
+                'index': {'begin': date_begin,
+                          'finish': date_finish
+                          },
+            }
+
             self.draw_plot_forecast([table_temp_index, table_wind_index], [list_table_temp, list_table_wind],
                                     ['axes_temp', 'axes_wind'])
 
@@ -449,16 +460,9 @@ class MainWindow(QMainWindow):
 
                 date_name = str(self.review_date.currentText())
                 df.set_index(date_name, inplace=True)
+                df.index = pd.to_datetime(df.index)
 
-                table = df[col][(str(date_begin)):(str(date_finish))]
-
-                list_table = table.tolist()
-                table = table.astype(float)
-
-                dates_str = list(map(str, table.index.tolist()))
-                index = list(map(datetime.datetime.fromisoformat, dates_str))
-
-                table = pd.Series(list_table, index=index)
+                table = df[col][date_begin:date_finish]
 
                 dec_ind = 0
                 dec_list = 0
@@ -472,9 +476,9 @@ class MainWindow(QMainWindow):
                 self.stats_text = 'Среднее: ' + str(round(mid(table), 3)) + ' Медиана: ' + str(round(table.median(), 3)) + ' Стандартное отклонение: ' + str(round(disp(table), 3))
 
                 if self.trend:
-                    self.draw_plot_review(index, list_table, decompose.index, list_decompose)
+                    self.draw_plot_review(table.index, table.tolist(), decompose.index, list_decompose)
                 else:
-                    self.draw_plot_review(index, list_table, 0, 0)
+                    self.draw_plot_review(table.index, table.tolist(), 0, 0)
 
                 self.review_del.clear()
                 self.opened_reviews.append('id:' + str(len(self.opened_reviews) - 1 + self.count) + ' ' + str(self.review_files.currentText() + ' ' + self.review_col.currentText()) + ' - (Удалить)')
@@ -532,58 +536,67 @@ class MainWindow(QMainWindow):
 
     def export(self):
         try:
+            list_idx = 0
             for i in range(1, len(self.opened_reviews_data), 1):
                 if self.tab_idx == self.opened_reviews_data[i]['id']:
                     list_idx = i
-            file_path = self.opened_reviews_data[list_idx]['path']
-            if file_path[-3::].upper() == 'CSV':
-                df = pd.read_csv(file_path)
-            elif file_path[-4::].upper() == 'XLSX':
-                df = pd.read_excel(file_path)
-            else:
-                return
-
-            col = self.opened_reviews_data[list_idx]['col']
-            date_begin = self.opened_reviews_data[list_idx]['index']['begin']
-            date_finish = self.opened_reviews_data[list_idx]['index']['finish']
-            date_name = self.opened_reviews_data[list_idx]['index']['name']
-
-            df.set_index(date_name, inplace=True)
-
-            table = df[col][(str(date_begin)):(str(date_finish))]
-
-            list_table = table.tolist()
-            table = table.astype(float)
-
-            dates_str = list(map(str, table.index.tolist()))
-            index = list(map(datetime.datetime.fromisoformat, dates_str))
-
-            table = pd.Series(list_table, index=index, name=col)
-
-            if self.opened_reviews_data[list_idx]['trend']['active']:
-                dec_list = self.opened_reviews_data[list_idx]['trend']['list']
-                dec_ind = self.opened_reviews_data[list_idx]['trend']['ind']
-                trend = pd.Series(dec_list, index=dec_ind, name='trend')
-                res = pd.concat([table, trend], axis=1)
-            else:
-                res = table
-            file = file_path.split("/")
-            export_file_path = str('/'.join(file[:-1:]) + '/Weater_Exports/' + file[-1])
-            export_path = str('/'.join(file[:-1:]) + '/Weater_Exports/')
-            os.makedirs(export_path, exist_ok=True)
-
-            if file_path[-3::].upper() == 'CSV':
-                if self.opened_reviews_data[list_idx]['trend']['active']:
-                    res.to_csv(export_file_path)
+            if list_idx:
+                file_path = self.opened_reviews_data[list_idx]['path']
+                if file_path[-3::].upper() == 'CSV':
+                    df = pd.read_csv(file_path)
+                elif file_path[-4::].upper() == 'XLSX':
+                    df = pd.read_excel(file_path)
                 else:
-                    res.to_csv(export_file_path)
+                    return
 
-            elif file_path[-4::].upper() == 'XLSX':
+                col = self.opened_reviews_data[list_idx]['col']
+                date_begin = self.opened_reviews_data[list_idx]['index']['begin']
+                date_finish = self.opened_reviews_data[list_idx]['index']['finish']
+                date_name = self.opened_reviews_data[list_idx]['index']['name']
+
+                df.set_index(date_name, inplace=True)
+
+                table = df[col][(str(date_begin)):(str(date_finish))]
+
+                list_table = table.tolist()
+                table = table.astype(float)
+
+                dates_str = list(map(str, table.index.tolist()))
+                index = list(map(datetime.datetime.fromisoformat, dates_str))
+
+                table = pd.Series(list_table, index=index, name=col)
+
                 if self.opened_reviews_data[list_idx]['trend']['active']:
-                    res.to_excel(export_file_path)
+                    dec_list = self.opened_reviews_data[list_idx]['trend']['list']
+                    dec_ind = self.opened_reviews_data[list_idx]['trend']['ind']
+                    trend = pd.Series(dec_list, index=dec_ind, name='trend')
+                    res = pd.concat([table, trend], axis=1)
                 else:
-                    res.to_excel(export_file_path)
+                    res = table
+                file = file_path.split("/")
+                export_file_path = str('/'.join(file[:-1:]) + '/Weater_Exports/' + file[-1])
+                export_path = str('/'.join(file[:-1:]) + '/Weater_Exports/')
+                os.makedirs(export_path, exist_ok=True)
 
+                if file_path[-3::].upper() == 'CSV':
+                    res.to_csv(export_file_path)
+                elif file_path[-4::].upper() == 'XLSX':
+                    res.to_excel(export_file_path)
+            else:
+                date_begin = self.opened_reviews_data[0]['index']['begin']
+                date_finish = self.opened_reviews_data[0]['index']['finish']
+
+                df = pd.read_csv('Forecast.csv')
+                df.set_index('date', inplace=True)
+
+                df.index = pd.to_datetime(df.index)
+
+                table_wind = df['wind'][date_begin:date_finish]
+                table_temp = df['temperature'][date_begin:date_finish]
+
+                res = pd.concat([table_wind, table_temp], axis=1)
+
+                res.to_csv('Forecast_Export')
         except Exception as e:
             self.err = ErrorWindow(str(e))
             self.err.show()
@@ -638,8 +651,17 @@ class MainWindow(QMainWindow):
                 exec('sc.{}.annotate(round(data[i][j], 1), (date_index[i][j], data[i][j] + 0.4))'.format(axes[i]))
 
         toolbar = NavigationToolbar(sc, self)
+
+        export_button = QPushButton()
+        export_button.setText('Экспорт')
+        export_button.setFont(QFont('MS Shell Dlg 2', 12))
+        export_button.setStyleSheet(
+            'QPushButton{background-color: rgba(20, 20, 20, 180); border-radius: 5%;color: white}')
+        export_button.clicked.connect(self.export)
+
         self.vis.addWidget(toolbar)
         self.vis.addWidget(sc)
+        self.vis.addWidget(export_button)
 
     def set_background(self, weather):
         weather_image = {
